@@ -4,7 +4,7 @@
  * ============================================================================
  * Google Sheet ID : 1XCG6zYfavLWSsda_0EvxUXN9DdGAWi9idqxCsttbnE4
  * Google Drive Folder ID : 1M2BB2fcy3yl9-DDyBPJaDEJQch6UiOPU
- * Web App URL : https://script.google.com/macros/s/AKfycbxJJZ5k7PxFsSEhtLCjckIPvMlFOH0R1Nq-dgjd22RxVuXigw_k5Iwo95wXQhUFIuzp/exec
+ * Web App URL : https://script.google.com/macros/s/AKfycbwT0OR7KbSdGHhtZPHasV6sA7vQSNEjkrPeNk0BdGWBWsbQSOkPnyyAbL7_WJp7507z/exec
  *
  * VERSI 2 (LIVE GOOGLE SHEET):
  *  - Google Sheet adalah SATU-SATUNYA sumber data (tiada lagi data dalam index.html).

@@ -7,6 +7,7 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#1e40af" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>window.SMIS_API_URL = "https://script.google.com/macros/s/AKfycbwT0OR7KbSdGHhtZPHasV6sA7vQSNEjkrPeNk0BdGWBWsbQSOkPnyyAbL7_WJp7507z/exec"; // ★ LINK GOOGLE APPS SCRIPT ANDA — TUKAR DI SINI SAHAJA (baris 10) ★</script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet" />
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -598,8 +599,8 @@
           </h3>
           <div class="space-y-3 text-xs">
             <div>
-              <label class="font-bold text-slate-700 block mb-1">Google Apps Script Web App URL (API Key)</label>
-              <input type="text" id="cfgApiUrl" class="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono text-[11px]" value="https://script.google.com/macros/s/AKfycbxJJZ5k7PxFsSEhtLCjckIPvMlFOH0R1Nq-dgjd22RxVuXigw_k5Iwo95wXQhUFIuzp/exec" />
+              <label class="font-bold text-slate-700 block mb-1">Google Apps Script Web App URL <span class="font-normal text-[10px] text-slate-500">(auto daripada baris 10 index.html — tukar di sana sahaja)</span></label>
+              <textarea id="cfgApiUrl" readonly rows="2" class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 font-mono text-[11px] resize-none break-all"></textarea>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -842,7 +843,7 @@
     // =========================================================================
     // 1. KONFIGURASI GOOGLE SHEETS, GOOGLE DRIVE & DATA ASAL (EXCEL MSS KEDAH 2025)
     // =========================================================================
-    const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxJJZ5k7PxFsSEhtLCjckIPvMlFOH0R1Nq-dgjd22RxVuXigw_k5Iwo95wXQhUFIuzp/exec";
+    const DEFAULT_API_URL = String(window.SMIS_API_URL || '').trim();
     const GOOGLE_SHEET_ID = "1XCG6zYfavLWSsda_0EvxUXN9DdGAWi9idqxCsttbnE4";
     const GOOGLE_DRIVE_FOLDER_ID = "1M2BB2fcy3yl9-DDyBPJaDEJQch6UiOPU";
 
@@ -917,7 +918,7 @@
       document.getElementById('cfgMeetDate').value = meetConfig.meetDate;
       document.getElementById('cfgMaxLanes').value = meetConfig.maxLanes;
       document.getElementById('cfgPointSystem').value = meetConfig.pointSystem.join(',');
-      document.getElementById('cfgApiUrl').value = meetConfig.apiUrl || DEFAULT_API_URL;
+      document.getElementById('cfgApiUrl').value = DEFAULT_API_URL;
     }
 
     function showToast(msg, isError = false) {
