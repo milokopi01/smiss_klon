@@ -2,258 +2,83 @@
 <html lang="ms">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>SMIS-PRO | Sistem Pengurusan Kejohanan Olahraga</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- SheetJS untuk Eksport & Import Fail Excel (.xlsx) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <!-- Google Fonts: Plus Jakarta Sans -->
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.json">
   <style>
-    body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden; /* Mengelakkan scrollbar berganda */
       background-color: #ffffff;
-      color: #0f172a;
     }
-
-    /* REKAAN BUTANG 3D KORPORAT */
-    .btn-3d {
-      position: relative;
-      display: inline-flex;
+    
+    /* Loading screen styles */
+    #loading {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #ffffff;
+      display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-weight: 700;
-      border-radius: 0.75rem;
-      padding: 0.65rem 1.25rem;
-      transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
-      cursor: pointer;
-      user-select: none;
-      letter-spacing: 0.01em;
+      z-index: 10;
+      font-family: sans-serif;
     }
-    .btn-3d:active {
-      transform: translateY(4px);
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #1e3a8a; /* Warna korporat */
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
     }
-
-    /* Variasi Warna Butang 3D */
-    .btn-3d-primary {
-      background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
-      color: #ffffff;
-      border-bottom: 4px solid #1e3a8a;
-      box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.25);
-    }
-    .btn-3d-primary:hover { background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); }
-    .btn-3d-primary:active { border-bottom-width: 0px; margin-bottom: 4px; }
-
-    .btn-3d-emerald {
-      background: linear-gradient(180deg, #10b981 0%, #059669 100%);
-      color: #ffffff;
-      border-bottom: 4px solid #065f46;
-      box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.25);
-    }
-    .btn-3d-emerald:hover { background: linear-gradient(180deg, #34d399 0%, #10b981 100%); }
-    .btn-3d-emerald:active { border-bottom-width: 0px; margin-bottom: 4px; }
-
-    .btn-3d-amber {
-      background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
-      color: #ffffff;
-      border-bottom: 4px solid #92400e;
-      box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.25);
-    }
-    .btn-3d-amber:hover { background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%); }
-    .btn-3d-amber:active { border-bottom-width: 0px; margin-bottom: 4px; }
-
-    .btn-3d-danger {
-      background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
-      color: #ffffff;
-      border-bottom: 4px solid #991b1b;
-      box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.25);
-    }
-    .btn-3d-danger:hover { background: linear-gradient(180deg, #f87171 0%, #ef4444 100%); }
-    .btn-3d-danger:active { border-bottom-width: 0px; margin-bottom: 4px; }
-
-    .btn-3d-slate {
-      background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
-      color: #1e293b;
-      border: 1px solid #cbd5e1;
-      border-bottom: 4px solid #94a3b8;
-    }
-    .btn-3d-slate:hover { background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%); }
-    .btn-3d-slate:active { border-bottom-width: 1px; margin-bottom: 3px; }
-
-    .btn-3d-active-tab {
-      background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-      color: #ffffff;
-      border-bottom: 4px solid #020617;
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
 
-    /* Kad Korporat Putih */
-    .corp-card {
-      background-color: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 1rem;
-      box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
-    }
-
-    /* Input Korporat */
-    .corp-input {
+    iframe {
       width: 100%;
-      background-color: #ffffff;
-      border: 1.5px solid #cbd5e1;
-      border-radius: 0.65rem;
-      padding: 0.6rem 0.85rem;
-      font-size: 0.925rem;
-      color: #0f172a;
-      transition: all 0.2s;
-    }
-    .corp-input:focus {
-      outline: none;
-      border-color: #2563eb;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-    }
-
-    /* Gaya Cetakan (Borang Hakim & Buku Keputusan) */
-    @media print {
-      .no-print { display: none !important; }
-      body { background: #ffffff; }
-      .corp-card { border: 1px solid #000; box-shadow: none; }
+      height: 100%;
+      border: none;
+      position: absolute;
+      top: 0; left: 0;
+      z-index: 1;
     }
   </style>
 </head>
-<body class="bg-white min-h-screen flex flex-col">
+<body>
+  
+  <!-- Skrin Memuatkan (Loading) -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <div style="color: #1e3a8a; font-weight: bold;">Memuatkan Pangkalan Data SMIS...</div>
+  </div>
 
-  <!-- BAR NAVIGASI ATAS -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 no-print">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="w-11 h-11 rounded-xl bg-blue-700 flex items-center justify-center text-white font-extrabold text-xl shadow-md border-b-4 border-blue-900">
-          S
-        </div>
-        <div>
-          <span class="text-xs font-bold uppercase tracking-widest text-blue-700 block">Sistem Pengurusan Kejohanan</span>
-          <h1 class="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">SMIS OLAHRAGA</h1>
-        </div>
-      </div>
-
-      <!-- Info Pengguna & Butang Log Masuk/Keluar -->
-      <div class="flex items-center space-x-3">
-        <div id="badgePengguna" class="hidden sm:flex flex-col text-right mr-2">
-          <span id="labelNamaPengguna" class="text-xs font-bold text-slate-900">URUSETIA PUSAT</span>
-          <span id="labelPeranan" class="text-[11px] font-semibold text-blue-600 uppercase">ADMIN</span>
-        </div>
-        <button id="btnBukaModalLogin" onclick="document.getElementById('modalLogin').classList.remove('hidden')" class="btn-3d btn-3d-primary text-sm">
-          Log Masuk Pegawai
-        </button>
-        <button id="btnLogKeluar" onclick="logKeluar()" class="btn-3d btn-3d-danger text-sm hidden">
-          Log Keluar
-        </button>
-      </div>
-    </div>
-
-    <!-- Bar Menu Navigasi Pantas -->
-    <div class="bg-slate-50 border-t border-slate-200 px-4 py-2.5 overflow-x-auto">
-      <div class="max-w-7xl mx-auto flex space-x-2">
-        <button onclick="tukarTab('tabDashboard')" id="nav-tabDashboard" class="btn-3d btn-3d-active-tab text-xs sm:text-sm whitespace-nowrap">
-          📊 Keputusan & Pingat
-        </button>
-        <button onclick="tukarTab('tabBorangHakim')" id="nav-tabBorangHakim" class="btn-3d btn-3d-slate text-xs sm:text-sm whitespace-nowrap">
-          📋 Borang Hakim (Cetak)
-        </button>
-        <button onclick="tukarTab('tabPengurus')" id="nav-tabPengurus" class="btn-3d btn-3d-slate text-xs sm:text-sm whitespace-nowrap hidden">
-          🏃 Daftar Atlet Sekolah
-        </button>
-        <button onclick="tukarTab('tabHakimPadang')" id="nav-tabHakimPadang" class="btn-3d btn-3d-slate text-xs sm:text-sm whitespace-nowrap hidden">
-          ⏱️ Input Hakim (Live)
-        </button>
-        <button onclick="tukarTab('tabAdmin')" id="nav-tabAdmin" class="btn-3d btn-3d-slate text-xs sm:text-sm whitespace-nowrap hidden">
-          ⚙️ Urusetia & Sandaran
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <!-- KANDUNGAN UTAMA -->
-  <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-
-    <!-- Modal Login -->
-    <div id="modalLogin" class="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 hidden no-print">
-      <div class="corp-card p-8 w-full max-w-md">
-        <h2 class="text-2xl font-extrabold text-slate-900 mb-6 text-center">Log Masuk Sistem</h2>
-        <div class="space-y-4">
-          <input type="text" id="idPengguna" placeholder="ID Pengguna" class="corp-input">
-          <input type="password" id="katalaluan" placeholder="Kata Laluan" class="corp-input">
-          <button onclick="logMasuk()" class="btn-3d btn-3d-primary w-full text-lg mt-2">Log Masuk</button>
-          <button onclick="document.getElementById('modalLogin').classList.add('hidden')" class="btn-3d btn-3d-slate w-full mt-2">Batal</button>
-          <p id="msgLogin" class="text-red-600 text-sm font-semibold text-center mt-2 hidden">Gagal Log Masuk</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB 1: KEPUTUSAN -->
-    <section id="tabDashboard" class="space-y-8">
-      <div class="corp-card p-6">
-        <h2 class="text-xl font-extrabold text-slate-900 mb-4">KEDUDUKAN PINGAT KESELURUHAN</h2>
-        <p class="text-sm text-slate-600">Simulasi Paparan Keputusan Kejohanan</p>
-      </div>
-    </section>
-
-    <!-- TAB 2: BORANG HAKIM -->
-    <section id="tabBorangHakim" class="hidden space-y-6">
-      <div class="corp-card p-6">
-        <h2 class="text-xl font-extrabold text-slate-900">Borang Hakim</h2>
-      </div>
-    </section>
-    
-    <!-- TAB 3: PENDAFTARAN ATLET -->
-    <section id="tabPengurus" class="hidden space-y-6">
-      <div class="corp-card p-6">
-        <h2 class="text-xl font-extrabold text-slate-900">Pendaftaran Atlet (Guru/Pengurus)</h2>
-      </div>
-    </section>
-    
-    <!-- TAB 4: HAKIM LIVE INPUT -->
-    <section id="tabHakimPadang" class="hidden space-y-6">
-      <div class="corp-card p-6">
-        <h2 class="text-xl font-extrabold text-slate-900">Kemasukan Data (Hakim Padang/Balapan)</h2>
-      </div>
-    </section>
-    
-    <!-- TAB 5: ADMIN -->
-    <section id="tabAdmin" class="hidden space-y-6">
-      <div class="corp-card p-6">
-        <h2 class="text-xl font-extrabold text-slate-900">Panel Admin (Jana Jadual / Saringan / Backup)</h2>
-      </div>
-    </section>
-  </main>
+  <!-- Embed (Tanam) Pautan Google Apps Script -->
+  <iframe 
+    id="gasFrame"
+    src="https://script.google.com/macros/s/AKfycbzMgQHLP5jNwNIX_gMhzJJDctiBPlWHGoSjdrIXX5mpMUY2decCQLkNr80-3m62sUR0/exec" 
+    allowfullscreen>
+  </iframe>
 
   <script>
-    // Sila rujuk Code.gs untuk interaksi sebenar. Ini sekadar frontend placeholder.
-    function tukarTab(tabId) {
-      document.querySelectorAll('main > section').forEach(el => el.classList.add('hidden'));
-      document.querySelectorAll('.btn-3d-active-tab').forEach(el => {
-        el.classList.remove('btn-3d-active-tab');
-        el.classList.add('btn-3d-slate');
-      });
-      document.getElementById(tabId).classList.remove('hidden');
-      document.getElementById('nav-' + tabId).classList.add('btn-3d-active-tab');
-      document.getElementById('nav-' + tabId).classList.remove('btn-3d-slate');
-    }
+    // Hilangkan skrin memuatkan apabila iframe selesai dimuatkan
+    document.getElementById('gasFrame').onload = function() {
+      document.getElementById('loading').style.display = 'none';
+    };
 
-    function logMasuk() {
-        // Simulasi log masuk
-        document.getElementById('modalLogin').classList.add('hidden');
-        document.getElementById('btnBukaModalLogin').classList.add('hidden');
-        document.getElementById('btnLogKeluar').classList.remove('hidden');
-        document.getElementById('badgePengguna').classList.remove('hidden');
-        
-        // Buka tab admin untuk contoh
-        document.getElementById('nav-tabAdmin').classList.remove('hidden');
-        document.getElementById('nav-tabHakimPadang').classList.remove('hidden');
-        document.getElementById('nav-tabPengurus').classList.remove('hidden');
-    }
-    function logKeluar() {
-        location.reload();
+    // Daftar Service Worker untuk keupayaan PWA (Install to Homescreen)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(registration => console.log('ServiceWorker berjaya didaftarkan'))
+          .catch(err => console.log('Pendaftaran ServiceWorker gagal: ', err));
+      });
     }
   </script>
 </body>
