@@ -1,0 +1,16 @@
+{
+  "name": "SMIS Kejohanan Olahraga",
+  "short_name": "SMIS Olahraga",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e3a8a",
+  "description": "Aplikasi Pengurusan Olahraga SMIS-PRO untuk Rekod Kejohanan dan Borang Hakim",
+  "icons": [
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Circle-icons-olahraga.svg/512px-Circle-icons-olahraga.svg.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
