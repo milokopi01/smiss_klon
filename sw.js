@@ -1,27 +1,47 @@
-const CACHE_NAME = 'smis-olahraga-tanam-v1';
-const urlsToCache = [
+const CACHE_NAME = 'smis-olahraga-v2025.1';
+const ASSETS_TO_CACHE = [
+  './',
   './index.html',
   './manifest.json'
 ];
 
-self.addEventListener('install', event => {
+self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS_TO_CACHE);
+    })
   );
+  self.skipWaiting();
 });
 
-self.addEventListener('fetch', event => {
-  // Hanya gunakan cache untuk fail lokal (index.html, manifest).
-  // Biarkan iframe (pautan Google Script) sentiasa memuatkan data langsung (live) dari internet.
-  if (event.request.url.includes('script.google.com')) {
-    return;
-  }
-  
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME) {
+            return caches.delete(cache);
+          }
+        })
+      );
+    })
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        return response || fetch(event.request);
+    fetch(event.request)
+      .then((response) => {
+        const resClone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          if (event.request.url.startsWith('http')) {
+            cache.put(event.request, resClone);
+          }
+        });
+        return response;
       })
+      .catch(() => caches.match(event.request))
   );
 });
