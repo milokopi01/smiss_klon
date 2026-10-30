@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smis-olahraga-v2025.1';
+const CACHE_NAME = 'smis-olahraga-v2025.2-live';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -31,6 +31,8 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // Data Google Sheet sentiasa diambil terus (tidak dicache) supaya sentiasa terkini
+  if (!event.request.url.startsWith(self.location.origin)) return;
   event.respondWith(
     fetch(event.request)
       .then((response) => {
