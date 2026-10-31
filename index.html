@@ -13,7 +13,7 @@
   <meta name="theme-color" content="#1e40af" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script>window.SMIS_API_URL = "https://script.google.com/macros/s/AKfycbxNuvyRituzo3wcSfMioQyrqSMcQqZADrA_hItyoZftp0IyTmQd9HpFyK0JgXsDls9y/exec"; // ★ LINK GOOGLE APPS SCRIPT ANDA — TUKAR DI SINI SAHAJA (baris 10) ★</script>
+  <script>window.SMIS_API_URL = "https://script.google.com/macros/s/AKfycbwT0OR7KbSdGHhtZPHasV6sA7vQSNEjkrPeNk0BdGWBWsbQSOkPnyyAbL7_WJp7507z/exec"; // ★ LINK GOOGLE APPS SCRIPT ANDA — TUKAR DI SINI SAHAJA (baris 10) ★</script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
@@ -222,7 +222,8 @@
 
     <!-- ==================== TAB 2: PENDAFTARAN SEKOLAH / KONTINJEN & ATLET ==================== -->
     <section id="tab-sekolah" class="tab-section hidden space-y-6">
-      <div id="teamQuotaSummary" class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs"></div>
+      <div id="regCountdown" class="hidden"></div>
+      <div id="teamQuotaSummary" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs"></div>
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
           <div>
@@ -591,6 +592,33 @@
               <select id="cfgTeamLimitMode" onchange="document.getElementById('cfgTeamLimit').disabled=this.value==='UNLIMITED'" class="w-full px-3 py-2 border rounded-lg"><option value="UNLIMITED">Tanpa had (Unlimited)</option><option value="LIMITED">Ada had</option></select>
               <input id="cfgTeamLimit" type="number" min="0" step="1" disabled class="w-full mt-2 px-3 py-2 border rounded-lg" placeholder="Bilangan atlet unik setiap pasukan" />
             </div>
+            <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-3">
+              <div class="font-extrabold text-slate-800"><i class="fa-solid fa-clock mr-1 text-blue-600"></i> Tempoh Pendaftaran Pasukan</div>
+              <div>
+                <label class="font-bold text-slate-700 block mb-1">Tarikh & Masa Tutup Pendaftaran (kosong = tiada had masa)</label>
+                <input type="datetime-local" id="cfgRegClose" class="w-full px-3 py-2 rounded-lg border border-slate-300" />
+              </div>
+              <div class="flex flex-wrap items-end gap-2">
+                <div class="flex-1 min-w-[200px]">
+                  <label class="font-bold text-slate-700 block mb-1">Tarikh & Masa Tambahan</label>
+                  <input type="datetime-local" id="cfgRegExtDate" class="w-full px-3 py-2 rounded-lg border border-slate-300" />
+                </div>
+                <button type="button" onclick="applyRegExtension(true)" class="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-white font-bold"><i class="fa-solid fa-hourglass-half mr-1"></i>Beri Tambahan (yang ditick)</button>
+                <button type="button" onclick="applyRegExtension(false)" class="px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 font-semibold">Buang Tambahan (yang ditick)</button>
+              </div>
+              <div class="overflow-x-auto max-h-72 overflow-y-auto border border-slate-200 rounded-lg bg-white">
+                <table class="w-full text-xs">
+                  <thead class="bg-slate-100 sticky top-0"><tr>
+                    <th class="p-2 text-center"><label class="flex flex-col items-center gap-1"><input type="checkbox" id="regAllowAll" onchange="toggleRegCol('regAllowChk', this.checked)" />Boleh Daftar</label></th>
+                    <th class="p-2 text-center"><label class="flex flex-col items-center gap-1"><input type="checkbox" id="regExtAll" onchange="toggleRegCol('regExtChk', this.checked)" />Tambahan Masa</label></th>
+                    <th class="p-2 text-left">Pasukan</th>
+                    <th class="p-2 text-left">Tarikh Tutup Pasukan</th>
+                  </tr></thead>
+                  <tbody id="regTeamTable"></tbody>
+                </table>
+              </div>
+              <p class="text-[10px] text-slate-500">Tekan "Simpan Tetapan Kejohanan" selepas membuat perubahan.</p>
+            </div>
             <div class="pt-2 flex flex-wrap gap-2">
               <button onclick="saveFlexibleConfig()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold">
                 <i class="fa-solid fa-check mr-1"></i> Simpan Tetapan Kejohanan
@@ -750,7 +778,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label class="font-bold text-slate-700 block mb-1">Pasukan / Sekolah</label>
-            <select id="athTeamSelect" onchange="populateAthleteEventsChecklist()" class="w-full px-3 py-2 rounded-lg border border-slate-300 font-semibold"></select>
+            <select id="athTeamSelect" onchange="populateAthleteEventsChecklist();fillAthleteNameList()" class="w-full px-3 py-2 rounded-lg border border-slate-300 font-semibold"></select>
           </div>
           <div>
             <label class="font-bold text-slate-700 block mb-1">No. Peserta (Bib)</label>
@@ -764,7 +792,8 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div class="sm:col-span-2">
             <label class="font-bold text-slate-700 block mb-1">Nama Penuh Atlet</label>
-            <input type="text" id="athNameInput" placeholder="Masukkan nama penuh mengikut MyKad..." class="w-full px-3 py-2 rounded-lg border border-slate-300 uppercase font-semibold" />
+            <input type="text" id="athNameInput" list="athNameList" autocomplete="off" oninput="onAthleteNameInput()" onchange="onAthleteNameInput()" placeholder="Taip nama baharu atau pilih peserta sedia ada..." class="w-full px-3 py-2 rounded-lg border border-slate-300 uppercase font-semibold" />
+            <datalist id="athNameList"></datalist>
           </div>
           <div>
             <label class="font-bold text-slate-700 block mb-1">Kategori Pertandingan</label>
@@ -774,7 +803,13 @@
         <div>
           <label class="font-bold text-slate-700 block mb-1">Pilih Acara Yang Disertai (Auto-Masuk ke Jadual & Borang Hakim):</label>
           <p id="athTeamQuota" class="text-xs font-semibold mb-2"></p>
+          <div class="flex flex-wrap gap-3 text-[10px] font-semibold mb-2">
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-emerald-100 border border-emerald-400"></span>Kosong / boleh isi</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-100 border border-amber-400"></span>Sudah ada peserta, masih ada tempat</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-rose-100 border border-rose-400"></span>Penuh</span>
+          </div>
           <div id="athEventsChecklist" class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 border border-slate-200 rounded-xl max-h-48 overflow-y-auto bg-slate-50"></div>
+          <div id="athReport" class="hidden mt-3"></div>
         </div>
         <div class="flex justify-end gap-2 pt-2">
           <button onclick="closeAthleteModal()" class="px-4 py-2 rounded-xl bg-slate-200 text-slate-700 font-semibold">Batal</button>
@@ -894,6 +929,9 @@
       meetDate: "15-17 JULAI 2025",
       maxLanes: 8,
       maxParticipantsPerTeam: 'UNLIMITED',
+      regCloseAt: '',
+      regAllowedTeams: 'ALL',
+      regExtensions: {},
       pointSystem: [8, 7, 6, 5, 4, 3, 2, 1],
       apiUrl: DEFAULT_API_URL
     };
@@ -953,7 +991,83 @@
       document.getElementById('cfgTeamLimit').disabled = quotaLimit(meetConfig.maxParticipantsPerTeam) === null;
       document.getElementById('cfgPointSystem').value = meetConfig.pointSystem.join(',');
       document.getElementById('cfgApiUrl').value = DEFAULT_API_URL;
+      document.getElementById('cfgRegClose').value = isoToLocalInput(meetConfig.regCloseAt);
+      renderRegTeamTable();
+      renderRegCountdown();
     }
+
+    // ===== TEMPOH PENDAFTARAN =====
+    function isoToLocalInput(iso) {
+      if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return '';
+      const z = n => String(n).padStart(2, '0');
+      return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes());
+    }
+    function localInputToIso(v) { if (!v) return ''; const d = new Date(v); return isNaN(d) ? '' : d.toISOString(); }
+    function fmtDateTime(iso) { if (!iso) return 'Tiada had masa'; const d = new Date(iso); return isNaN(d) ? '-' : d.toLocaleString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+    function regAllowedList() { const v = meetConfig.regAllowedTeams; return !v || v === 'ALL' ? null : String(v).split(',').map(x => x.trim()).filter(Boolean); }
+    function teamRegDeadline(team) { return (meetConfig.regExtensions || {})[team] || meetConfig.regCloseAt || ''; }
+    function teamRegStatus(team) {
+      const list = regAllowedList();
+      if (list && !list.includes(team)) return { open: false, reason: 'Pendaftaran bagi pasukan anda tidak dibenarkan oleh pentadbir.', deadline: '' };
+      const dl = teamRegDeadline(team);
+      if (dl && Date.now() >= new Date(dl).getTime()) return { open: false, reason: 'Tempoh pendaftaran telah tamat pada ' + fmtDateTime(dl) + '.', deadline: dl };
+      return { open: true, deadline: dl, extended: !!(meetConfig.regExtensions || {})[team] };
+    }
+    function managerRegBlocked() {
+      if (!currentUser || String(currentUser.Peranan).toLowerCase() !== 'pengurus') return null;
+      const st = teamRegStatus(currentUser.KodPasukan);
+      return st.open ? null : st.reason;
+    }
+    function renderRegTeamTable() {
+      const tb = document.getElementById('regTeamTable'); if (!tb) return;
+      const list = regAllowedList(), ext = meetConfig.regExtensions || {};
+      tb.innerHTML = getValidTeams().map(t => '<tr class="border-t border-slate-100">'
+        + '<td class="p-2 text-center"><input type="checkbox" name="regAllowChk" value="' + escapeText(t.KodPasukan) + '" ' + (!list || list.includes(t.KodPasukan) ? 'checked' : '') + ' /></td>'
+        + '<td class="p-2 text-center"><input type="checkbox" name="regExtChk" value="' + escapeText(t.KodPasukan) + '" /></td>'
+        + '<td class="p-2 font-semibold">' + escapeText(t.KodPasukan) + ' - ' + escapeText(t.NamaPasukan || '') + '</td>'
+        + '<td class="p-2">' + (ext[t.KodPasukan] ? '<span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">Tambahan: ' + fmtDateTime(ext[t.KodPasukan]) + '</span>' : '<span class="text-slate-500">' + fmtDateTime(meetConfig.regCloseAt) + '</span>') + '</td></tr>').join('')
+        || '<tr><td colspan="4" class="p-3 text-slate-400">Tiada pasukan.</td></tr>';
+      const all = document.querySelectorAll('input[name="regAllowChk"]');
+      document.getElementById('regAllowAll').checked = all.length > 0 && [...all].every(c => c.checked);
+      document.getElementById('regExtAll').checked = false;
+    }
+    function toggleRegCol(name, on) { document.querySelectorAll('input[name="' + name + '"]').forEach(c => c.checked = on); }
+    function applyRegExtension(give) {
+      const teams = [...document.querySelectorAll('input[name="regExtChk"]:checked')].map(c => c.value);
+      if (!teams.length) return showToast('Sila tick pasukan untuk tambahan masa.', true);
+      const allowed = [...document.querySelectorAll('input[name="regAllowChk"]')].map(c => c.checked ? c.value : null);
+      meetConfig.regExtensions = Object.assign({}, meetConfig.regExtensions || {});
+      if (give) {
+        const iso = localInputToIso(document.getElementById('cfgRegExtDate').value);
+        if (!iso) return showToast('Sila pilih tarikh & masa tambahan.', true);
+        teams.forEach(t => meetConfig.regExtensions[t] = iso);
+      } else teams.forEach(t => delete meetConfig.regExtensions[t]);
+      renderRegTeamTable();
+      document.querySelectorAll('input[name="regAllowChk"]').forEach((c, i) => c.checked = !!allowed[i]);
+      showToast((give ? 'Tambahan masa diberi kepada ' : 'Tambahan masa dibuang bagi ') + teams.length + ' pasukan. Tekan Simpan Tetapan.');
+    }
+    function renderRegCountdown() {
+      const box = document.getElementById('regCountdown'); if (!box) return;
+      if (!currentUser || String(currentUser.Peranan).toLowerCase() !== 'pengurus' || !currentUser.KodPasukan || currentUser.KodPasukan === 'ALL') { box.classList.add('hidden'); return; }
+      const st = teamRegStatus(currentUser.KodPasukan);
+      box.classList.remove('hidden');
+      if (!st.open) {
+        box.innerHTML = '<div class="rounded-2xl p-4 bg-gradient-to-r from-rose-600 to-red-500 text-white shadow flex items-center gap-3"><i class="fa-solid fa-lock text-2xl"></i><div><div class="font-extrabold">Pendaftaran Ditutup</div><div class="text-xs opacity-90">' + escapeText(st.reason) + ' Hubungi pentadbir jika perlukan tambahan masa.</div></div></div>';
+        return;
+      }
+      if (!st.deadline) { box.innerHTML = '<div class="rounded-2xl p-4 bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow flex items-center gap-3"><i class="fa-solid fa-door-open text-2xl"></i><div class="font-extrabold">Pendaftaran Dibuka</div></div>'; return; }
+      let ms = new Date(st.deadline).getTime() - Date.now();
+      const d = Math.floor(ms / 86400000); ms -= d * 86400000;
+      const h = Math.floor(ms / 3600000); ms -= h * 3600000;
+      const m = Math.floor(ms / 60000); const sec = Math.floor((ms - m * 60000) / 1000);
+      const urgent = d < 1;
+      const cell = (v, l) => '<div class="bg-white/15 rounded-xl px-3 py-2 min-w-[64px] text-center"><div class="text-2xl font-extrabold tabular-nums leading-none">' + String(v).padStart(2, '0') + '</div><div class="text-[10px] uppercase tracking-wide opacity-90 mt-1">' + l + '</div></div>';
+      box.innerHTML = '<div class="rounded-2xl p-4 text-white shadow flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r ' + (urgent ? 'from-amber-500 to-orange-500' : 'from-blue-600 to-indigo-600') + '">'
+        + '<div><div class="font-extrabold"><i class="fa-solid fa-hourglass-half mr-1"></i> Masa Berbaki Pendaftaran' + (st.extended ? ' <span class="ml-1 px-2 py-0.5 rounded bg-white/25 text-[10px]">TAMBAHAN MASA</span>' : '') + '</div>'
+        + '<div class="text-xs opacity-90">Ditutup pada ' + fmtDateTime(st.deadline) + '</div></div>'
+        + '<div class="flex gap-2">' + cell(d, 'Hari') + cell(h, 'Jam') + cell(m, 'Minit') + cell(sec, 'Saat') + '</div></div>';
+    }
+    setInterval(() => { try { renderRegCountdown(); } catch (e) {} }, 1000);
 
     function showToast(msg, isError = false) {
       const box = document.getElementById('toastBox');
@@ -1427,7 +1541,7 @@
             <td class="py-2 px-3 text-center"><span class="px-2 py-0.5 rounded bg-slate-100 font-bold">${a.Kategori}</span></td>
             <td class="py-2 px-3 text-[11px] text-slate-600">${a.SenaraiAcaraDisertai || '-'}</td>
             <td class="py-2 px-3 text-center">
-              ${smisIsAdmin() ? `<button onclick="editAthlete('${a.NoPeserta}')" class="text-blue-600 px-2 py-1" title="Edit Atlet"><i class="fa-solid fa-pen-to-square"></i></button>` : ''}
+              ${canManageAthlete(a) ? `<button onclick="editAthlete('${a.NoPeserta}')" class="text-blue-600 px-2 py-1" title="Edit Atlet"><i class="fa-solid fa-pen-to-square"></i></button>` : ''}
               <button onclick="deleteAthlete('${a.NoPeserta}')" class="text-rose-600 hover:text-rose-800 px-2 py-1" title="Padam Atlet"><i class="fa-solid fa-trash"></i></button>
             </td>
           </tr>`;
@@ -1485,16 +1599,20 @@
     let editingAthleteBib = null;
     let editingEventNo = null;
     function openAthleteModal() {
+      if (managerRegBlocked()) return showToast(managerRegBlocked(), true);
       editingAthleteBib = null;
+      delete document.getElementById('athBibInput').dataset.adminEdit;
       ['athBibInput','athNameInput','athDobInput'].forEach(id => { document.getElementById(id).value = ''; });
+      document.getElementById('athReport').classList.add('hidden');
       document.getElementById('athBibInput').disabled = false;
-      if (currentUser && currentUser.Peranan === 'Pengurus' && currentUser.KodPasukan !== 'ALL') {
+      if (currentUser && String(currentUser.Peranan).toLowerCase() === 'pengurus' && currentUser.KodPasukan !== 'ALL') {
         document.getElementById('athTeamSelect').value = currentUser.KodPasukan;
       } else {
         const curFilter = document.getElementById('schoolFilterSelect').value;
         if (curFilter !== 'ALL') document.getElementById('athTeamSelect').value = curFilter;
       }
       populateAthleteEventsChecklist();
+      fillAthleteNameList();
       document.getElementById('athleteModal').classList.remove('hidden');
       document.getElementById('athleteModal').classList.add('flex');
     }
@@ -1522,8 +1640,8 @@
         const registered = editingAthleteBib && (DB.Pendaftaran || []).some(r => String(r.NoPeserta) === String(editingAthleteBib) && Number(r.NoAcara) === Number(ev.NoAcara));
         const q = eventQuota(ev, team);
         box.innerHTML += `
-          <label class="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200">
-            <input type="checkbox" name="athEventChk" value="${ev.NoAcara}" ${registered ? 'checked' : ''} ${!registered && q.remaining === 0 ? 'disabled' : ''} class="rounded text-blue-600" />
+          <label class="flex items-center gap-2 p-2 rounded-lg border-2 ${q.remaining === 0 ? 'bg-rose-50 border-rose-400 text-rose-800' : (q.used > 0 ? 'bg-amber-50 border-amber-400 text-amber-900' : 'bg-emerald-50 border-emerald-400 text-emerald-900')}">
+            <input type="checkbox" name="athEventChk" value="${ev.NoAcara}" ${registered ? 'checked' : ''} ${(!registered && q.remaining === 0) || false ? 'disabled' : ''} class="rounded text-blue-600" />
             <span><strong>#${ev.NoAcara}</strong> - ${escapeText(ev.NamaAcara)} (${escapeText(ev.PeringkatAsal)})<br><span class="text-[10px]">${quotaText(q)}</span></span>
           </label>`;
       });
@@ -1551,7 +1669,7 @@
       }
 
       if (!teamObj) return showToast('Sila pilih pasukan yang sah.', true);
-      if (editingAthleteBib && !smisIsAdmin()) return showToast('Hanya Master Admin / Sub Admin boleh mengubah maklumat berdaftar.', true);
+      if (editingAthleteBib && !canManageAthlete((DB.Atlet || []).find(a => a.NoPeserta === editingAthleteBib)) ) return showToast('Hanya Master Admin / Sub Admin boleh mengubah maklumat berdaftar.', true);
       if (!editingAthleteBib && teamQuota(teamCode).remaining === 0) return showToast('Had keseluruhan peserta pasukan telah penuh.', true);
       for (const no of selectedEvents) {
         const ev = DB.Acara.find(e => Number(e.NoAcara) === no);
@@ -1636,7 +1754,7 @@
     }
 
     function deleteAthlete(noPeserta) {
-      if (!smisIsAdmin()) return showToast('Hanya Master Admin / Sub Admin boleh memadam atlet.', true);
+      if (!canManageAthlete((DB.Atlet || []).find(a => a.NoPeserta === noPeserta))) return showToast(managerRegBlocked() || 'Anda hanya boleh memadam atlet pasukan sendiri.', true);
       if (!confirm(`Adakah anda pasti mahu memadam atlet ${noPeserta}?`)) return;
       DB.Keputusan = (DB.Keputusan || []).filter(r => r.NoPeserta !== noPeserta);
       DB.Atlet = (DB.Atlet || []).filter(a => a.NoPeserta !== noPeserta);
@@ -2915,6 +3033,9 @@
       const ptsArr = document.getElementById('cfgPointSystem').value.split(',').map(n => Number(n.trim()) || 0);
       if (ptsArr.length >= 3) meetConfig.pointSystem = ptsArr;
       meetConfig.apiUrl = document.getElementById('cfgApiUrl').value.trim() || DEFAULT_API_URL;
+      meetConfig.regCloseAt = localInputToIso(document.getElementById('cfgRegClose').value);
+      const allowChks = [...document.querySelectorAll('input[name="regAllowChk"]')];
+      if (allowChks.length) meetConfig.regAllowedTeams = allowChks.every(c => c.checked) ? 'ALL' : allowChks.filter(c => c.checked).map(c => c.value).join(',');
 
       localStorage.setItem('SMIS_MEET_CONFIG_V1', JSON.stringify(meetConfig));
       applyMeetConfigUI();
@@ -2975,7 +3096,7 @@
     function quotaText(q) { return q.limit === null ? q.used + ' peserta • Tanpa had' : q.used + '/' + q.limit + ' peserta • Baki ' + q.remaining + ' tempat'; }
     function renderTeamQuotaSummary() {
       const box = document.getElementById('teamQuotaSummary');
-      const team = currentUser && currentUser.Peranan === 'Pengurus' ? currentUser.KodPasukan : document.getElementById('schoolFilterSelect').value;
+      const team = currentUser && String(currentUser.Peranan).toLowerCase() === 'pengurus' ? currentUser.KodPasukan : document.getElementById('schoolFilterSelect').value;
       if (!team || team === 'ALL') { box.textContent = 'Had keseluruhan setiap pasukan: ' + (quotaLimit(meetConfig.maxParticipantsPerTeam) ?? 'Tanpa had'); return; }
       box.innerHTML = '<strong>' + escapeText(team) + ': ' + quotaText(teamQuota(team)) + '</strong><div class="grid sm:grid-cols-3 gap-2 mt-3">' + orderedEvents().map(ev => '<div>#' + escapeText(ev.NoAcara) + ' ' + escapeText(ev.NamaAcara) + ' (' + escapeText(ev.Kategori) + ')<br>' + quotaText(eventQuota(ev, team)) + '</div>').join('') + '</div>';
     }
@@ -2995,16 +3116,70 @@
       DB.Acara = rows; saveLocalDatabase(); renderScheduleTable(); populateJudgeEventSelect(); populateResultEventSelect();
     }
     function moveSchedule(no, direction) { const rows = orderedEvents(); const i = rows.findIndex(e => Number(e.NoAcara) === Number(no)); if (rows[i + direction]) reorderSchedule(no, rows[i + direction].NoAcara); }
+    function athleteTeamForList() {
+      if (currentUser && String(currentUser.Peranan).toLowerCase() === 'pengurus' && currentUser.KodPasukan !== 'ALL') return currentUser.KodPasukan;
+      return document.getElementById('athTeamSelect').value;
+    }
+    function fillAthleteNameList() {
+      const team = athleteTeamForList();
+      document.getElementById('athNameList').innerHTML = (DB.Atlet || []).filter(a => !team || team === 'ALL' || a.KodPasukan === team)
+        .map(a => '<option value="' + escapeText(a.NamaPeserta) + '">' + escapeText(a.NoPeserta + ' • ' + a.Kategori) + '</option>').join('');
+    }
+    function onAthleteNameInput() {
+      const val = document.getElementById('athNameInput').value.trim().toUpperCase();
+      const team = athleteTeamForList();
+      const a = (DB.Atlet || []).find(x => String(x.NamaPeserta).toUpperCase() === val && (!team || team === 'ALL' || x.KodPasukan === team));
+      if (a) {
+        editingAthleteBib = a.NoPeserta;
+        document.getElementById('athTeamSelect').value = a.KodPasukan;
+        document.getElementById('athBibInput').value = a.NoPeserta; document.getElementById('athBibInput').disabled = true;
+        document.getElementById('athDobInput').value = a.TarikhLahir || '';
+        document.getElementById('athCatSelect').value = a.Kategori;
+        populateAthleteEventsChecklist();
+        renderAthleteReport(a);
+      } else {
+        if (editingAthleteBib && !document.getElementById('athBibInput').dataset.adminEdit) {
+          editingAthleteBib = null;
+          document.getElementById('athBibInput').disabled = false;
+          document.getElementById('athBibInput').value = '';
+          populateAthleteEventsChecklist();
+        }
+        document.getElementById('athReport').classList.add('hidden');
+      }
+    }
+    function renderAthleteReport(a) {
+      const box = document.getElementById('athReport');
+      const regs = (DB.Pendaftaran || []).filter(r => String(r.NoPeserta) === String(a.NoPeserta));
+      const initials = String(a.NamaPeserta || '?').split(/\s+/).slice(0,2).map(w => w[0] || '').join('');
+      const list = regs.length ? regs.map(r => {
+          const ev = (DB.Acara || []).find(e => Number(e.NoAcara) === Number(r.NoAcara)) || {};
+          return '<li class="flex items-center justify-between gap-2 py-2 border-b last:border-0 border-slate-100"><span><span class="inline-block min-w-[3rem] text-center px-2 py-0.5 rounded-md bg-blue-600 text-white font-bold mr-2">#' + escapeText(r.NoAcara) + '</span><span class="font-semibold text-slate-800">' + escapeText(r.NamaAcara) + '</span></span><span class="text-[10px] text-slate-500 text-right">' + escapeText([ev.Tarikh, ev.Masa].filter(Boolean).join(' • ')) + '</span></li>';
+        }).join('')
+        : '<div class="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 font-semibold"><i class="fa-solid fa-circle-exclamation"></i> Peserta ini belum mempunyai sebarang acara.</div>';
+      box.innerHTML = '<div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">'
+        + '<div class="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">'
+        + '<div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-extrabold">' + escapeText(initials) + '</div>'
+        + '<div class="flex-1"><div class="font-extrabold text-sm">' + escapeText(a.NamaPeserta) + '</div><div class="text-[11px] opacity-90">Bib ' + escapeText(a.NoPeserta) + ' • ' + escapeText(a.Kategori) + ' • ' + escapeText(a.NamaPasukan || a.KodPasukan) + '</div></div>'
+        + '<div class="text-center"><div class="text-xl font-extrabold leading-none">' + regs.length + '</div><div class="text-[10px] opacity-90">acara</div></div></div>'
+        + '<div class="p-3"><div class="font-bold text-slate-700 mb-1">Laporan Penyertaan Acara</div>' + (regs.length ? '<ul>' + list + '</ul>' : list) + '</div></div>';
+      box.classList.remove('hidden');
+    }
+    function canManageAthlete(a) {
+      if (smisIsAdmin()) return true;
+      if (!a || !currentUser || String(currentUser.Peranan).toLowerCase() !== 'pengurus') return false;
+      return a.KodPasukan === currentUser.KodPasukan && !managerRegBlocked();
+    }
     function editAthlete(bib) {
-      if (!smisIsAdmin()) return showToast('Hanya Master Admin / Sub Admin boleh mengubah maklumat berdaftar.', true);
       const a = DB.Atlet.find(a => a.NoPeserta === bib); if (!a) return;
-      openAthleteModal(); editingAthleteBib = bib;
+      if (!canManageAthlete(a)) return showToast(managerRegBlocked() || 'Anda hanya boleh mengubah atlet pasukan sendiri.', true);
+      openAthleteModal(); editingAthleteBib = bib; document.getElementById('athBibInput').dataset.adminEdit = '1';
       document.getElementById('athTeamSelect').value = a.KodPasukan;
       document.getElementById('athBibInput').value = a.NoPeserta; document.getElementById('athBibInput').disabled = true;
       document.getElementById('athNameInput').value = a.NamaPeserta;
       document.getElementById('athDobInput').value = a.TarikhLahir;
       document.getElementById('athCatSelect').value = a.Kategori;
       populateAthleteEventsChecklist();
+      renderAthleteReport(a);
     }
   </script>
   <script>
@@ -3168,6 +3343,9 @@
           if (t.Kunci === 'meetName') meetConfig.meetName = v;
           if (t.Kunci === 'meetDate') meetConfig.meetDate = v;
           if (t.Kunci === 'maxParticipantsPerTeam') meetConfig.maxParticipantsPerTeam = v;
+          if (t.Kunci === 'regCloseAt') meetConfig.regCloseAt = v === '-' ? '' : v;
+          if (t.Kunci === 'regAllowedTeams') meetConfig.regAllowedTeams = v;
+          if (t.Kunci === 'regExtensions') { try { meetConfig.regExtensions = JSON.parse(v) || {}; } catch (e) {} }
           if (t.Kunci === 'maxLanes') meetConfig.maxLanes = Number(v) || meetConfig.maxLanes;
           if (t.Kunci === 'pointSystem') { const p = v.split(',').map(n => Number(n.trim()) || 0); if (p.length >= 3) meetConfig.pointSystem = p; }
         });
@@ -3244,7 +3422,7 @@
         document.querySelectorAll('[onclick^="deleteAthlete"]').forEach(b => {
           const m = (b.getAttribute('onclick') || '').match(/deleteAthlete\('([^']*)'\)/);
           const ath = m ? (DB.Atlet || []).find(a => String(a.NoPeserta) === m[1]) : null;
-          show(b, isAdmin());
+          show(b, isAdmin() || (isPengurus() && ath && ath.KodPasukan === currentUser.KodPasukan && !managerRegBlocked()));
         });
         // Jika tab semasa tidak dibenarkan, kembali ke dashboard
         const cur = document.querySelector('.tab-section:not(.hidden)');
@@ -3275,6 +3453,7 @@
       });
       wrap('saveAthleteRegistration', orig => function () {
         if (!(isAdmin() || isPengurus())) return deny('Tiada kebenaran.');
+        if (managerRegBlocked()) return deny(managerRegBlocked());
         const sel = document.getElementById('athTeamSelect');
         if (isPengurus() && sel && sel.value !== currentUser.KodPasukan) return deny('Anda hanya boleh mendaftar atlet untuk pasukan sendiri.');
         const bib = (document.getElementById('athBibInput').value || '').trim().toUpperCase();
@@ -3283,7 +3462,7 @@
       });
       wrap('deleteAthlete', orig => function (noPeserta) {
         const ath = (DB.Atlet || []).find(a => a.NoPeserta === noPeserta);
-        if (!isAdmin()) return deny('Anda hanya boleh memadam atlet pasukan sendiri.');
+        if (!isAdmin() && !(isPengurus() && ath && ath.KodPasukan === currentUser.KodPasukan && !managerRegBlocked())) return deny(managerRegBlocked() || 'Anda hanya boleh memadam atlet pasukan sendiri.');
         return orig.apply(this, arguments);
       });
 
@@ -3291,7 +3470,7 @@
         if (!isAdmin()) return deny();
         suppressPush = true;
         try { if (orig.apply(this, arguments) === false) return; } finally { suppressPush = false; }
-        const vals = { maxParticipantsPerTeam: String(meetConfig.maxParticipantsPerTeam), meetName: meetConfig.meetName, meetDate: meetConfig.meetDate, maxLanes: String(meetConfig.maxLanes), pointSystem: meetConfig.pointSystem.join(',') };
+        const vals = { maxParticipantsPerTeam: String(meetConfig.maxParticipantsPerTeam), meetName: meetConfig.meetName, meetDate: meetConfig.meetDate, maxLanes: String(meetConfig.maxLanes), pointSystem: meetConfig.pointSystem.join(','), regCloseAt: meetConfig.regCloseAt || '-', regAllowedTeams: meetConfig.regAllowedTeams || 'ALL', regExtensions: JSON.stringify(meetConfig.regExtensions || {}) };
         DB.Tetapan = DB.Tetapan || [];
         Object.keys(vals).forEach(k => {
           const row = DB.Tetapan.find(t => t.Kunci === k);

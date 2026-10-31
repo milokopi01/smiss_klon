@@ -181,11 +181,16 @@ function canWriteRow(user, sheetName, oldRow, newRow) {
   }
   if (isRole(user, 'Pengurus')) {
     const team = String(user.KodPasukan || '').trim();
-    // Pengurus boleh menambah pendaftaran sendiri, bukan edit/padam maklumat berdaftar.
-    return !!team && team !== 'ALL' && !oldRow && !!newRow &&
-      ['Atlet', 'Pendaftaran', 'Keputusan'].indexOf(sheetName) !== -1 &&
-      String(newRow.KodPasukan || '').trim() === team &&
-      (sheetName !== 'Keputusan' || (!newRow.Catatan && !newRow.Kedudukan && !newRow.CatatanRekod));
+    // Pengurus boleh tambah, ubah & padam atlet/pendaftaran pasukan sendiri semasa pendaftaran dibuka
+    // (tempoh pendaftaran disemak dalam applyChanges). Keputusan yang sudah diisi hakim tidak boleh disentuh.
+    if (!team || team === 'ALL' || ['Atlet', 'Pendaftaran', 'Keputusan'].indexOf(sheetName) === -1) return false;
+    if (oldRow && String(oldRow.KodPasukan || '').trim() !== team) return false;
+    if (newRow && String(newRow.KodPasukan || '').trim() !== team) return false;
+    if (sheetName === 'Keputusan') {
+      if (oldRow && (oldRow.Catatan || oldRow.Kedudukan || oldRow.CatatanRekod)) return false;
+      if (newRow && (newRow.Catatan || newRow.Kedudukan || newRow.CatatanRekod)) return false;
+    }
+    return true;
   }
   return false;
 }
@@ -211,6 +216,17 @@ function participantSets(db, eventNo, team) {
     if (String(r.NoAcara) === String(eventNo) && String(r.KodPasukan) === String(team)) out[String(r.NoPeserta).toUpperCase()] = true;
   }));
   return Object.keys(out);
+}
+// Tempoh pendaftaran: regCloseAt (ISO), regAllowedTeams ('ALL' / senarai), regExtensions (JSON {pasukan: ISO})
+function registrationClosedReason(db, team) {
+  const get = k => { const r = (db.Tetapan || []).find(t => t.Kunci === k); return r ? String(r.Nilai || '').trim() : ''; };
+  const allowed = get('regAllowedTeams');
+  if (allowed && allowed !== 'ALL' && allowed.split(',').map(x => x.trim()).indexOf(team) === -1) return 'Pendaftaran bagi pasukan ' + team + ' tidak dibenarkan.';
+  let ext = {}; try { ext = JSON.parse(get('regExtensions') || '{}') || {}; } catch (e) {}
+  let close = ext[team] || get('regCloseAt');
+  if (close === '-') close = '';
+  if (close) { const d = new Date(close); if (!isNaN(d.getTime()) && Date.now() >= d.getTime()) return 'Tempoh pendaftaran pasukan ' + team + ' telah tamat.'; }
+  return '';
 }
 function validateParticipantChanges(before, after) {
   const setting = (after.Tetapan || []).find(t => t.Kunci === 'maxParticipantsPerTeam');
@@ -289,6 +305,10 @@ function applyChanges(ss, user, changes, replace) {
       after[rp.sheet] = rp.rows || []; headers[rp.sheet] = getHeaders(ss, rp.sheet, after[rp.sheet]); dirty[rp.sheet] = true;
       applied.push({ sheet: rp.sheet, op: 'replace' });
     });
+    if (isRole(user, 'Pengurus') && applied.length) {
+      const reason = registrationClosedReason(before, String(user.KodPasukan || '').trim());
+      if (reason) rejected.push({ reason: reason });
+    }
     // Semua semakan dibuat di dalam lock; pendaftaran separa tidak disimpan.
     if (rejected.length) { applied.length = 0; return; }
     try { validateParticipantChanges(before, after); }
