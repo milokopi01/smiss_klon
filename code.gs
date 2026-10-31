@@ -28,7 +28,7 @@ const SHEET_SCHEMAS = {
   'Tetapan': ['Kunci', 'Nilai'],
   'Pengguna': ['Username', 'Password', 'Peranan', 'KodPasukan', 'NamaPasukan', 'CatatanAkses'],
   'Pasukan': ['Bil', 'KodPasukan', 'NamaPasukan', 'PrefiksNoPeserta', 'JumlahAtlet', 'BDL12', 'BDL19', 'BLL12', 'BLL19', 'BPL12', 'BPL15', 'BPL19', 'BDP12', 'BDP19', 'BLP12', 'BLP19', 'BPP12', 'BPP15', 'BPP19', 'Pegawai_L', 'Pegawai_P', 'JumlahPegawai'],
-  'Acara': ['NoAcara', 'Hari', 'Tarikh', 'Masa', 'NamaAcara', 'Kategori', 'Jenis', 'PeringkatAsal', 'NoAcaraAkhir', 'RekodKejohanan', 'InfoRekodKejohanan', 'InfoRekodMSSM', 'StatusDataBuku'],
+  'Acara': ['NoAcara', 'Hari', 'Tarikh', 'Masa', 'NamaAcara', 'Kategori', 'Jenis', 'PeringkatAsal', 'NoAcaraAkhir', 'RekodKejohanan', 'InfoRekodKejohanan', 'InfoRekodMSSM', 'StatusDataBuku', 'HadPesertaPasukan', 'SusunanJadual'],
   'Atlet': ['Bil', 'NoPeserta', 'NamaPeserta', 'TarikhLahir', 'KodPasukan', 'NamaPasukan', 'Kategori', 'JumlahAcaraDisertai', 'SenaraiAcaraDisertai'],
   'Pendaftaran': ['IDPendaftaran', 'NoAcara', 'NamaAcara', 'Kategori', 'Jenis', 'NoPeserta', 'NamaPeserta', 'KodPasukan', 'NamaPasukan', 'TarikhLahir'],
   'Keputusan': ['IDKeputusan', 'NoAcara', 'TarikhMasa', 'NamaAcara', 'Kategori', 'Jenis', 'PeringkatAsal', 'Peringkat', 'GiliranLorong', 'NoPeserta', 'NamaPeserta', 'KodPasukan', 'NamaPasukan', 'TarikhLahir', 'Catatan', 'Status', 'Kedudukan', 'CatatanRekod'],
@@ -101,13 +101,8 @@ function doPost(e) {
     if (action === 'syncAll' || action === 'seedDefaultData') {
       if (!user || !isRole(user, 'Admin')) return jsonResponse({ status: 'error', message: 'Hanya Master Admin dibenarkan menulis semula keseluruhan Google Sheet.' });
       const db = payload.data || {};
-      withLock(function () {
-        Object.keys(SHEET_SCHEMAS).forEach(sheetName => {
-          if (db[sheetName] && Array.isArray(db[sheetName])) {
-            writeSheetData(ss, sheetName, getHeaders(ss, sheetName), db[sheetName]);
-          }
-        });
-      });
+      const result = applyChanges(ss, user, [], Object.keys(db).filter(name => SHEET_SCHEMAS[name] && Array.isArray(db[name])).map(sheet => ({ sheet, rows: db[sheet] })));
+      if (result.rejected.length) return jsonResponse({ status: 'error', message: result.rejected.map(r => r.reason).join(' '), rejected: result.rejected });
       return jsonResponse({ status: 'success', message: 'Semua data berjaya diselaraskan ke Google Sheet.' });
     }
 
@@ -115,9 +110,8 @@ function doPost(e) {
       const sheetName = payload.sheetName;
       if (!user || !(isRole(user, 'Admin') || (isManager(user) && sheetName !== 'Pengguna'))) return jsonResponse({ status: 'error', message: 'Hanya Master Admin / Sub Admin dibenarkan.' });
       const rows = payload.rows || [];
-      withLock(function () {
-        writeSheetData(ss, sheetName, getHeaders(ss, sheetName, rows), rows);
-      });
+      const result = applyChanges(ss, user, [], [{ sheet: sheetName, rows }]);
+      if (result.rejected.length) return jsonResponse({ status: 'error', message: result.rejected.map(r => r.reason).join(' '), rejected: result.rejected });
       return jsonResponse({ status: 'success', message: 'Sheet ' + sheetName + ' dikemaskini.' });
     }
 
@@ -177,22 +171,21 @@ function publicUser(u) {
 function canWriteRow(user, sheetName, oldRow, newRow) {
   if (isRole(user, 'Admin')) return true;
   if (isRole(user, 'SubAdmin')) {
-    // Sub Admin boleh urus semua data, kecuali akaun Master Admin / Sub Admin
-    if (sheetName === 'Pengguna') return !isAdminRow(oldRow) && !isAdminRow(newRow);
-    return true;
+    return sheetName !== 'Pengguna' || (!isAdminRow(oldRow) && !isAdminRow(newRow));
   }
-  if (isRole(user, 'Hakim')) return sheetName === 'Keputusan';
+  if (isRole(user, 'Hakim')) {
+    // Hakim hanya mengubah keputusan, bukan identiti/pendaftaran peserta.
+    if (sheetName !== 'Keputusan' || !oldRow || !newRow) return false;
+    const fields = ['Catatan', 'Status', 'Kedudukan', 'CatatanRekod', 'Peringkat', 'GiliranLorong'];
+    return Object.keys(newRow).every(k => fields.indexOf(k) !== -1 || String(newRow[k] || '') === String(oldRow[k] || ''));
+  }
   if (isRole(user, 'Pengurus')) {
     const team = String(user.KodPasukan || '').trim();
-    if (!team || team === 'ALL') return false;
-    const own = r => !r || String(r.KodPasukan || '').trim() === team;
-    if (sheetName === 'Pasukan') {
-      // Hanya kemaskini baris pasukan sendiri (tidak boleh tambah/padam)
-      return !!oldRow && !!newRow && own(oldRow) && own(newRow);
-    }
-    if (sheetName === 'Atlet' || sheetName === 'Pendaftaran' || sheetName === 'Keputusan') {
-      return own(oldRow) && own(newRow);
-    }
+    // Pengurus boleh menambah pendaftaran sendiri, bukan edit/padam maklumat berdaftar.
+    return !!team && team !== 'ALL' && !oldRow && !!newRow &&
+      ['Atlet', 'Pendaftaran', 'Keputusan'].indexOf(sheetName) !== -1 &&
+      String(newRow.KodPasukan || '').trim() === team &&
+      (sheetName !== 'Keputusan' || (!newRow.Catatan && !newRow.Kedudukan && !newRow.CatatanRekod));
   }
   return false;
 }
@@ -205,65 +198,104 @@ function canReplaceSheet(user, sheetName) {
 // ============================================================================
 // PERUBAHAN BARIS (UPSERT / DELETE) SECARA SELAMAT
 // ============================================================================
-function applyChanges(ss, user, changes, replace) {
-  const applied = [];
-  const rejected = [];
-
-  withLock(function () {
-    changes.forEach(ch => {
-      const sheetName = ch.sheet;
-      const key = SHEET_KEYS[sheetName];
-      if (!key) { rejected.push({ sheet: sheetName, reason: 'Jadual tidak dikenali' }); return; }
-
-      const data = readSheetObjects(ss, sheetName);
-      let headers = data.headers;
-      const rows = data.rows;
-      const index = {};
-      rows.forEach((r, i) => { index[String(r[key])] = i; });
-      let changed = false;
-
-      (ch.deletes || []).forEach(k => {
-        const i = index[String(k)];
-        if (i === undefined) return;
-        if (!canWriteRow(user, sheetName, rows[i], null)) { rejected.push({ sheet: sheetName, key: k, reason: 'Tiada kebenaran padam' }); return; }
-        rows[i] = null;
-        delete index[String(k)];
-        changed = true;
-        applied.push({ sheet: sheetName, key: k, op: 'delete' });
-      });
-
-      (ch.upserts || []).forEach(newRow => {
-        const k = String(newRow[key] === undefined ? '' : newRow[key]);
-        if (!k) return;
-        const i = index[k];
-        const oldRow = i === undefined ? null : rows[i];
-        if (!canWriteRow(user, sheetName, oldRow, newRow)) { rejected.push({ sheet: sheetName, key: k, reason: 'Tiada kebenaran' }); return; }
-        // Pengguna bukan Admin tidak boleh menukar kata laluan / peranan sesiapa
-        Object.keys(newRow).forEach(h => { if (headers.indexOf(h) === -1) headers.push(h); });
-        if (oldRow) {
-          const merged = Object.assign({}, oldRow, newRow);
-          if (sheetName === 'Pengguna' && (newRow.Password === undefined || newRow.Password === '')) merged.Password = oldRow.Password;
-          rows[i] = merged;
-        } else {
-          rows.push(newRow);
-          index[k] = rows.length - 1;
-        }
-        changed = true;
-        applied.push({ sheet: sheetName, key: k, op: oldRow ? 'update' : 'insert' });
-      });
-
-      if (changed) writeSheetData(ss, sheetName, headers, rows.filter(r => r !== null));
-    });
-
-    replace.forEach(rp => {
-      if (!SHEET_SCHEMAS[rp.sheet]) { rejected.push({ sheet: rp.sheet, reason: 'Jadual tidak dikenali' }); return; }
-      if (!canReplaceSheet(user, rp.sheet)) { rejected.push({ sheet: rp.sheet, reason: 'Tiada kebenaran' }); return; }
-      writeSheetData(ss, rp.sheet, getHeaders(ss, rp.sheet, rp.rows || []), rp.rows || []);
-      applied.push({ sheet: rp.sheet, op: 'replace' });
+// Kosong / UNLIMITED = tanpa had. 0 juga sah untuk menutup pendaftaran.
+function participantLimit(value) {
+  const text = String(value === undefined || value === null ? '' : value).trim();
+  if (!text || text.toUpperCase() === 'UNLIMITED') return null;
+  if (!/^\d+$/.test(text) || !Number.isSafeInteger(Number(text))) throw new Error('Had peserta mesti nombor bulat tidak negatif atau UNLIMITED.');
+  return Number(text);
+}
+function participantSets(db, eventNo, team) {
+  const out = {};
+  ['Pendaftaran', 'Keputusan'].forEach(sheet => (db[sheet] || []).forEach(r => {
+    if (String(r.NoAcara) === String(eventNo) && String(r.KodPasukan) === String(team)) out[String(r.NoPeserta).toUpperCase()] = true;
+  }));
+  return Object.keys(out);
+}
+function validateParticipantChanges(before, after) {
+  const setting = (after.Tetapan || []).find(t => t.Kunci === 'maxParticipantsPerTeam');
+  const maxTeam = participantLimit(setting ? setting.Nilai : 'UNLIMITED');
+  const bibs = {};
+  (after.Atlet || []).forEach(a => {
+    const bib = String(a.NoPeserta || '').trim().toUpperCase();
+    if (!bib || !a.NamaPeserta || !a.KodPasukan) throw new Error('Maklumat atlet tidak lengkap.');
+    if (bibs[bib]) throw new Error('No. Peserta sudah wujud: ' + bib);
+    bibs[bib] = a;
+  });
+  (after.Pasukan || []).forEach(team => {
+    const count = db => (db.Atlet || []).filter(a => String(a.KodPasukan) === String(team.KodPasukan)).length;
+    if (maxTeam !== null && count(after) > maxTeam && count(after) > count(before)) throw new Error('Pasukan ' + team.KodPasukan + ' telah mencapai had keseluruhan ' + maxTeam + ' peserta.');
+  });
+  (after.Acara || []).forEach(ev => {
+    const limit = participantLimit(ev.HadPesertaPasukan);
+    const teams = {};
+    ['Pendaftaran', 'Keputusan'].forEach(sheet => (after[sheet] || []).forEach(r => { if (String(r.NoAcara) === String(ev.NoAcara)) teams[String(r.KodPasukan)] = true; }));
+    Object.keys(teams).forEach(team => {
+      const count = participantSets(after, ev.NoAcara, team).length;
+      const oldCount = participantSets(before, ev.NoAcara, team).length;
+      if (limit !== null && count > limit && count > oldCount) throw new Error('Acara #' + ev.NoAcara + ': pasukan ' + team + ' terhad kepada ' + limit + ' peserta. Baki tempat: ' + Math.max(0, limit - oldCount) + '.');
     });
   });
-
-  return { applied: applied, rejected: rejected };
+  ['Pendaftaran', 'Keputusan'].forEach(sheet => {
+    const key = SHEET_KEYS[sheet];
+    const old = {}; (before[sheet] || []).forEach(r => { old[String(r[key])] = r; });
+    (after[sheet] || []).forEach(r => {
+      const previous = old[String(r[key])];
+      if (previous && ['NoPeserta','KodPasukan','NoAcara'].every(k => String(previous[k]) === String(r[k]))) return;
+      const ev = (after.Acara || []).find(e => String(e.NoAcara) === String(r.NoAcara));
+      if (!ev) throw new Error('Acara tidak dijumpai.');
+      const athlete = bibs[String(r.NoPeserta || '').toUpperCase()];
+      const team = (after.Pasukan || []).find(t => String(t.KodPasukan) === String(r.KodPasukan));
+      if (!team || (!athlete && !(r.Jenis === 'Berpasukan' && String(r.NoPeserta).toUpperCase() === String(team.KodPasukan).toUpperCase()))) throw new Error('Peserta mesti didaftarkan dengan pasukan yang sah dahulu.');
+      if (athlete && (String(athlete.KodPasukan) !== String(r.KodPasukan) || String(athlete.Kategori) !== String(ev.Kategori))) throw new Error('Pasukan/kategori peserta tidak sepadan dengan acara.');
+      if ((after[sheet] || []).some(other => other !== r && String(other.NoAcara) === String(r.NoAcara) && String(other.NoPeserta).toUpperCase() === String(r.NoPeserta).toUpperCase())) throw new Error('Peserta sudah berdaftar dalam acara ini.');
+    });
+  });
+}
+function applyChanges(ss, user, changes, replace) {
+  const applied = [], rejected = [];
+  withLock(function () {
+    const before = {}, after = {}, headers = {}, dirty = {};
+    Object.keys(SHEET_SCHEMAS).forEach(sheet => {
+      const data = readSheetObjects(ss, sheet);
+      before[sheet] = data.rows;
+      after[sheet] = data.rows.map(r => Object.assign({}, r));
+      headers[sheet] = data.headers;
+    });
+    changes.forEach(ch => {
+      const sheet = ch.sheet, key = SHEET_KEYS[sheet];
+      if (!key) { rejected.push({ sheet, reason: 'Jadual tidak dikenali' }); return; }
+      (ch.deletes || []).forEach(k => {
+        const i = after[sheet].findIndex(r => String(r[key]) === String(k));
+        if (i < 0) return;
+        if (!canWriteRow(user, sheet, after[sheet][i], null)) { rejected.push({ sheet, key: k, reason: 'Hanya Master Admin / Sub Admin boleh memadam maklumat berdaftar.' }); return; }
+        after[sheet].splice(i, 1); dirty[sheet] = true; applied.push({ sheet, key: k, op: 'delete' });
+      });
+      (ch.upserts || []).forEach(row => {
+        const k = String(row[key] === undefined ? '' : row[key]);
+        if (!k) { rejected.push({ sheet, reason: 'Kunci rekod diperlukan.' }); return; }
+        const i = after[sheet].findIndex(r => String(r[key]) === k);
+        const old = i < 0 ? null : after[sheet][i];
+        const merged = Object.assign({}, old || {}, row);
+        if (!canWriteRow(user, sheet, old, merged)) { rejected.push({ sheet, key: k, reason: 'Tiada kebenaran mengubah maklumat berdaftar.' }); return; }
+        if (sheet === 'Pengguna' && old && !row.Password) merged.Password = old.Password;
+        Object.keys(merged).forEach(h => { if (headers[sheet].indexOf(h) === -1) headers[sheet].push(h); });
+        if (i < 0) after[sheet].push(merged); else after[sheet][i] = merged;
+        dirty[sheet] = true; applied.push({ sheet, key: k, op: old ? 'update' : 'insert' });
+      });
+    });
+    replace.forEach(rp => {
+      if (!SHEET_SCHEMAS[rp.sheet] || !canReplaceSheet(user, rp.sheet)) { rejected.push({ sheet: rp.sheet, reason: 'Tiada kebenaran' }); return; }
+      after[rp.sheet] = rp.rows || []; headers[rp.sheet] = getHeaders(ss, rp.sheet, after[rp.sheet]); dirty[rp.sheet] = true;
+      applied.push({ sheet: rp.sheet, op: 'replace' });
+    });
+    // Semua semakan dibuat di dalam lock; pendaftaran separa tidak disimpan.
+    if (rejected.length) { applied.length = 0; return; }
+    try { validateParticipantChanges(before, after); }
+    catch (err) { rejected.push({ reason: err.message }); applied.length = 0; return; }
+    Object.keys(dirty).forEach(sheet => writeSheetData(ss, sheet, headers[sheet], after[sheet]));
+  });
+  return { applied, rejected };
 }
 
 function withLock(fn) {

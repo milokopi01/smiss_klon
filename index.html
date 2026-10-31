@@ -3,15 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <meta name="description" content="Pengurusan kejohanan, jadual acara dan pendaftaran peserta SMIS." />
+  <meta property="og:title" content="SMIS — Pengurusan Kejohanan Olahraga" />
+  <meta property="og:description" content="Jadual acara, pendaftaran peserta dan keputusan kejohanan." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
   <title>SMIS - Sistem Pengurusan Kejohanan Olahraga & Padang</title>
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#1e40af" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script>window.SMIS_API_URL = "https://script.google.com/macros/s/AKfycbzeRiQ2YDn29f3ryj3RBVH7VqlhErK1KMIlAz3Pmjd-xT4Dy49qWndyHTMZ9i1dAQHv/exec"; // ★ LINK GOOGLE APPS SCRIPT ANDA — TUKAR DI SINI SAHAJA (baris 10) ★</script>
+  <script>window.SMIS_API_URL = "https://script.google.com/macros/s/AKfycbwT0OR7KbSdGHhtZPHasV6sA7vQSNEjkrPeNk0BdGWBWsbQSOkPnyyAbL7_WJp7507z/exec"; // ★ LINK GOOGLE APPS SCRIPT ANDA — TUKAR DI SINI SAHAJA (baris 10) ★</script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
     body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #0f172a; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -116,7 +122,7 @@
             <i class="fa-solid fa-bolt"></i> Sistem Pengurusan Kejohanan Fleksibel
           </span>
           <h2 class="text-lg sm:text-2xl font-extrabold" id="dashBannerTitle">KEJOHANAN OLAHRAGA PENDIDIKAN KHAS MSS KEDAH 2025</h2>
-          <p class="text-xs sm:text-sm text-slate-300 mt-1">Sedia untuk pendaftaran sekolah, saringan automatik, borang hakim, dan cetakan Buku Kejohanan.</p>
+          <p class="text-xs sm:text-sm text-slate-300 mt-1">Data rasmi daripada Excel & Buku Kejohanan telah dimuatkan. Sedia untuk pendaftaran sekolah, saringan automatik, borang hakim, dan cetakan Buku Kejohanan.</p>
         </div>
         <div class="flex flex-wrap gap-2">
           <button onclick="switchTab('sekolah')" class="px-3.5 py-2 rounded-xl bg-white text-slate-900 font-bold text-xs hover:bg-blue-50 transition shadow flex items-center gap-1.5">
@@ -216,6 +222,7 @@
 
     <!-- ==================== TAB 2: PENDAFTARAN SEKOLAH / KONTINJEN & ATLET ==================== -->
     <section id="tab-sekolah" class="tab-section hidden space-y-6">
+      <div id="teamQuotaSummary" class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs"></div>
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
           <div>
@@ -579,6 +586,11 @@
               <label class="font-bold text-slate-700 block mb-1">Skema Mata Kedudukan 1 hingga 8 (Pisahkan dengan koma)</label>
               <input type="text" id="cfgPointSystem" class="w-full px-3 py-2 rounded-lg border border-slate-300" value="8,7,6,5,4,3,2,1" />
             </div>
+            <div>
+              <label class="font-bold text-slate-700 block mb-1">Had keseluruhan peserta setiap pasukan</label>
+              <select id="cfgTeamLimitMode" onchange="document.getElementById('cfgTeamLimit').disabled=this.value==='UNLIMITED'" class="w-full px-3 py-2 border rounded-lg"><option value="UNLIMITED">Tanpa had (Unlimited)</option><option value="LIMITED">Ada had</option></select>
+              <input id="cfgTeamLimit" type="number" min="0" step="1" disabled class="w-full mt-2 px-3 py-2 border rounded-lg" placeholder="Bilangan atlet unik setiap pasukan" />
+            </div>
             <div class="pt-2 flex flex-wrap gap-2">
               <button onclick="saveFlexibleConfig()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold">
                 <i class="fa-solid fa-check mr-1"></i> Simpan Tetapan Kejohanan
@@ -738,7 +750,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label class="font-bold text-slate-700 block mb-1">Pasukan / Sekolah</label>
-            <select id="athTeamSelect" class="w-full px-3 py-2 rounded-lg border border-slate-300 font-semibold"></select>
+            <select id="athTeamSelect" onchange="populateAthleteEventsChecklist()" class="w-full px-3 py-2 rounded-lg border border-slate-300 font-semibold"></select>
           </div>
           <div>
             <label class="font-bold text-slate-700 block mb-1">No. Peserta (Bib)</label>
@@ -761,6 +773,7 @@
         </div>
         <div>
           <label class="font-bold text-slate-700 block mb-1">Pilih Acara Yang Disertai (Auto-Masuk ke Jadual & Borang Hakim):</label>
+          <p id="athTeamQuota" class="text-xs font-semibold mb-2"></p>
           <div id="athEventsChecklist" class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 border border-slate-200 rounded-xl max-h-48 overflow-y-auto bg-slate-50"></div>
         </div>
         <div class="flex justify-end gap-2 pt-2">
@@ -844,6 +857,11 @@
             <input type="text" id="evRecInfoInput" placeholder="KOPKMSSK - 12.10s (2024)" class="w-full px-3 py-2 rounded-lg border border-slate-300" />
           </div>
         </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Had peserta setiap pasukan bagi acara ini</label>
+          <select id="evLimitMode" onchange="document.getElementById('evLimitInput').disabled=this.value==='UNLIMITED'" class="w-full px-3 py-2 border rounded-lg"><option value="UNLIMITED">Tanpa had (Unlimited)</option><option value="LIMITED">Ada had</option></select>
+          <input id="evLimitInput" type="number" min="0" step="1" disabled class="w-full mt-2 px-3 py-2 border rounded-lg" placeholder="Bilangan peserta setiap pasukan" />
+        </div>
         <button onclick="saveNewEvent()" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow">
           Simpan Acara
         </button>
@@ -875,6 +893,7 @@
       meetName: "KEJOHANAN OLAHRAGA PENDIDIKAN KHAS MSS KEDAH 2025",
       meetDate: "15-17 JULAI 2025",
       maxLanes: 8,
+      maxParticipantsPerTeam: 'UNLIMITED',
       pointSystem: [8, 7, 6, 5, 4, 3, 2, 1],
       apiUrl: DEFAULT_API_URL
     };
@@ -929,6 +948,9 @@
       document.getElementById('cfgMeetName').value = meetConfig.meetName;
       document.getElementById('cfgMeetDate').value = meetConfig.meetDate;
       document.getElementById('cfgMaxLanes').value = meetConfig.maxLanes;
+      document.getElementById('cfgTeamLimitMode').value = quotaLimit(meetConfig.maxParticipantsPerTeam) === null ? 'UNLIMITED' : 'LIMITED';
+      document.getElementById('cfgTeamLimit').value = quotaLimit(meetConfig.maxParticipantsPerTeam) ?? '';
+      document.getElementById('cfgTeamLimit').disabled = quotaLimit(meetConfig.maxParticipantsPerTeam) === null;
       document.getElementById('cfgPointSystem').value = meetConfig.pointSystem.join(',');
       document.getElementById('cfgApiUrl').value = DEFAULT_API_URL;
     }
@@ -1375,6 +1397,7 @@
       });
 
       renderAthleteTable();
+      renderTeamQuotaSummary();
     }
 
     function renderAthleteTable() {
@@ -1404,6 +1427,7 @@
             <td class="py-2 px-3 text-center"><span class="px-2 py-0.5 rounded bg-slate-100 font-bold">${a.Kategori}</span></td>
             <td class="py-2 px-3 text-[11px] text-slate-600">${a.SenaraiAcaraDisertai || '-'}</td>
             <td class="py-2 px-3 text-center">
+              ${smisIsAdmin() ? `<button onclick="editAthlete('${a.NoPeserta}')" class="text-blue-600 px-2 py-1" title="Edit Atlet"><i class="fa-solid fa-pen-to-square"></i></button>` : ''}
               <button onclick="deleteAthlete('${a.NoPeserta}')" class="text-rose-600 hover:text-rose-800 px-2 py-1" title="Padam Atlet"><i class="fa-solid fa-trash"></i></button>
             </td>
           </tr>`;
@@ -1458,7 +1482,12 @@
       showToast(`Sekolah/Kontinjen ${name} berjaya didaftarkan!`);
     }
 
+    let editingAthleteBib = null;
+    let editingEventNo = null;
     function openAthleteModal() {
+      editingAthleteBib = null;
+      ['athBibInput','athNameInput','athDobInput'].forEach(id => { document.getElementById(id).value = ''; });
+      document.getElementById('athBibInput').disabled = false;
       if (currentUser && currentUser.Peranan === 'Pengurus' && currentUser.KodPasukan !== 'ALL') {
         document.getElementById('athTeamSelect').value = currentUser.KodPasukan;
       } else {
@@ -1487,11 +1516,15 @@
         return;
       }
 
+      document.getElementById('athTeamQuota').textContent = 'Keseluruhan pasukan: ' + quotaText(teamQuota(document.getElementById('athTeamSelect').value));
       catEvents.forEach(ev => {
+        const team = document.getElementById('athTeamSelect').value;
+        const registered = editingAthleteBib && (DB.Pendaftaran || []).some(r => String(r.NoPeserta) === String(editingAthleteBib) && Number(r.NoAcara) === Number(ev.NoAcara));
+        const q = eventQuota(ev, team);
         box.innerHTML += `
-          <label class="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-400 cursor-pointer">
-            <input type="checkbox" name="athEventChk" value="${ev.NoAcara}" class="rounded text-blue-600" />
-            <span><strong>#${ev.NoAcara}</strong> - ${ev.NamaAcara} <span class="text-[10px] text-slate-500">(${ev.PeringkatAsal})</span></span>
+          <label class="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200">
+            <input type="checkbox" name="athEventChk" value="${ev.NoAcara}" ${registered ? 'checked' : ''} ${!registered && q.remaining === 0 ? 'disabled' : ''} class="rounded text-blue-600" />
+            <span><strong>#${ev.NoAcara}</strong> - ${escapeText(ev.NamaAcara)} (${escapeText(ev.PeringkatAsal)})<br><span class="text-[10px]">${quotaText(q)}</span></span>
           </label>`;
       });
     }
@@ -1517,12 +1550,35 @@
         return;
       }
 
+      if (!teamObj) return showToast('Sila pilih pasukan yang sah.', true);
+      if (editingAthleteBib && !smisIsAdmin()) return showToast('Hanya Master Admin / Sub Admin boleh mengubah maklumat berdaftar.', true);
+      if (!editingAthleteBib && teamQuota(teamCode).remaining === 0) return showToast('Had keseluruhan peserta pasukan telah penuh.', true);
+      for (const no of selectedEvents) {
+        const ev = DB.Acara.find(e => Number(e.NoAcara) === no);
+        if (!ev || ev.Kategori !== cat) return showToast('Kategori acara tidak sepadan.', true);
+        const existing = (DB.Pendaftaran || []).some(r => String(r.NoPeserta) === String(editingAthleteBib) && Number(r.NoAcara) === no && r.KodPasukan === teamCode);
+        if (!existing && eventQuota(ev, teamCode).remaining === 0) return showToast('Acara #' + no + ' telah penuh bagi pasukan ini.', true);
+      }
+      if (editingAthleteBib) {
+        const athlete = DB.Atlet.find(a => a.NoPeserta === editingAthleteBib);
+        if (athlete && athlete.KodPasukan !== teamCode && teamQuota(teamCode).remaining === 0) return showToast('Had pasukan baharu telah penuh.', true);
+        const oldRegistrations = (DB.Pendaftaran || []).filter(r => r.NoPeserta === editingAthleteBib);
+        const removed = oldRegistrations.filter(r => !selectedEvents.includes(Number(r.NoAcara))).map(r => Number(r.NoAcara));
+        ['Pendaftaran','Keputusan'].forEach(sheet => {
+          DB[sheet] = (DB[sheet] || []).filter(r => r.NoPeserta !== editingAthleteBib || !removed.includes(Number(r.NoAcara)));
+          DB[sheet].forEach(r => {
+            if (r.NoPeserta === editingAthleteBib) Object.assign(r, { NamaPeserta: name, TarikhLahir: dob, KodPasukan: teamCode, NamaPasukan: teamName, Kategori: cat });
+          });
+        });
+        if (athlete) Object.assign(athlete, { NamaPeserta: name, TarikhLahir: dob, KodPasukan: teamCode, NamaPasukan: teamName, Kategori: cat, JumlahAcaraDisertai: selectedEvents.length, SenaraiAcaraDisertai: selectedEvents.map(no => { const e = DB.Acara.find(e => Number(e.NoAcara) === no); return no + ' (' + e.NamaAcara + ')'; }).join(', ') });
+      }
       const eventLabels = [];
       selectedEvents.forEach(noAcara => {
         const ev = (DB.Acara || []).find(e => Number(e.NoAcara) === noAcara);
         if (!ev) return;
         eventLabels.push(`${ev.NoAcara} (${ev.NamaAcara})`);
 
+        if ((DB.Pendaftaran || []).some(r => String(r.NoPeserta) === bib && Number(r.NoAcara) === noAcara)) return;
         // Masukkan ke Pendaftaran
         DB.Pendaftaran.push({
           IDPendaftaran: nextSeqId('REG-', DB.Pendaftaran, 'IDPendaftaran'),
@@ -1561,7 +1617,7 @@
         });
       });
 
-      DB.Atlet.push({
+      if (!editingAthleteBib) DB.Atlet.push({
         Bil: DB.Atlet.length + 1,
         NoPeserta: bib,
         NamaPeserta: name,
@@ -1576,11 +1632,13 @@
       recalculateAllStandings(false);
       renderAllViews();
       closeAthleteModal();
-      showToast(`Atlet ${name} (${bib}) berjaya didaftarkan ke dalam ${selectedEvents.length} acara!`);
+      showToast(`Atlet ${name} (${bib}) ${editingAthleteBib ? 'berjaya dikemaskini' : 'berjaya didaftarkan'} dalam ${selectedEvents.length} acara!`);
     }
 
     function deleteAthlete(noPeserta) {
+      if (!smisIsAdmin()) return showToast('Hanya Master Admin / Sub Admin boleh memadam atlet.', true);
       if (!confirm(`Adakah anda pasti mahu memadam atlet ${noPeserta}?`)) return;
+      DB.Keputusan = (DB.Keputusan || []).filter(r => r.NoPeserta !== noPeserta);
       DB.Atlet = (DB.Atlet || []).filter(a => a.NoPeserta !== noPeserta);
       DB.Pendaftaran = (DB.Pendaftaran || []).filter(p => p.NoPeserta !== noPeserta);
       recalculateAllStandings(false);
@@ -1600,7 +1658,7 @@
       const tbody = document.getElementById('scheduleTableBody');
       tbody.innerHTML = '';
 
-      const filtered = (DB.Acara || []).filter(ev => {
+      const filtered = orderedEvents().filter(ev => {
         if (dayF !== 'ALL' && ev.Hari !== dayF) return false;
         if (typeF !== 'ALL' && !String(ev.Jenis).includes(typeF)) return false;
         if (catF !== 'ALL' && ev.Kategori !== catF) return false;
@@ -1619,8 +1677,8 @@
           : `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">${ev.PeringkatAsal}</span>`;
 
         tbody.innerHTML += `
-          <tr class="hover:bg-slate-50">
-            <td class="py-2.5 px-3 font-extrabold text-blue-700">#${ev.NoAcara}</td>
+          <tr class="hover:bg-slate-50" data-event-no="${ev.NoAcara}" ondragover="event.preventDefault()" ondrop="dropSchedule(event, ${ev.NoAcara})">
+            <td class="py-2.5 px-3 font-extrabold text-blue-700">${smisIsAdmin() ? `<span draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '${ev.NoAcara}')" class="cursor-grab mr-2" title="Susun acara" aria-label="Susun acara ${ev.NoAcara}"><i class="fa-solid fa-grip-vertical"></i></span>` : ''}#${ev.NoAcara}</td>
             <td class="py-2.5 px-3 text-slate-600">${ev.Tarikh} <span class="font-semibold text-slate-800">${ev.Masa}</span></td>
             <td class="py-2.5 px-3 font-bold text-slate-900">${ev.NamaAcara}</td>
             <td class="py-2.5 px-3 text-center"><span class="px-2 py-0.5 rounded bg-slate-100 font-bold">${ev.Kategori}</span></td>
@@ -1634,6 +1692,7 @@
             </td>
             <td class="py-2.5 px-3 text-[11px] text-slate-500">${ev.InfoRekodKejohanan || '-'}</td>
             <td class="py-2.5 px-3 text-center space-x-1 whitespace-nowrap">
+              ${smisIsAdmin() ? `<button onclick="openEventModal(${ev.NoAcara})" title="Edit Acara" class="px-2 py-1 text-blue-700"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="moveSchedule(${ev.NoAcara}, -1)" title="Naik" class="px-1"><i class="fa-solid fa-arrow-up"></i></button><button onclick="moveSchedule(${ev.NoAcara}, 1)" title="Turun" class="px-1"><i class="fa-solid fa-arrow-down"></i></button>` : ''}
               ${needsHeats ? `<button onclick="splitEventIntoHeats(${ev.NoAcara})" class="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold" title="Pecahkan Saringan Automatik"><i class="fa-solid fa-code-branch mr-1"></i>Auto Saringan</button>` : ''}
               <button onclick="openJudgeFormForEvent(${ev.NoAcara})" class="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold" title="Borang Hakim"><i class="fa-solid fa-clipboard-list"></i></button>
               <button onclick="openResultsForEvent(${ev.NoAcara})" class="px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold" title="Rekod Keputusan"><i class="fa-solid fa-stopwatch"></i></button>
@@ -1730,7 +1789,16 @@
       showToast(`Semakan Saringan Selesai! ${countSplit} acara larian (> ${maxLanes} peserta) telah disusun ke dalam Saringan & Acara Akhir.`);
     }
 
-    function openEventModal() {
+    function openEventModal(noAcara) {
+      if (!smisIsAdmin()) return showToast('Hanya Master Admin / Sub Admin boleh mengubah acara.', true);
+      const ev = DB.Acara.find(e => Number(e.NoAcara) === Number(noAcara));
+      editingEventNo = ev ? ev.NoAcara : null;
+      const fields = { evNoInput:'NoAcara', evDayInput:'Hari', evDateInput:'Tarikh', evTimeInput:'Masa', evNameInput:'NamaAcara', evCatInput:'Kategori', evTypeInput:'Jenis', evStageInput:'PeringkatAsal', evFinalNoInput:'NoAcaraAkhir', evRecValInput:'RekodKejohanan', evRecInfoInput:'InfoRekodKejohanan' };
+      Object.keys(fields).forEach(id => { const el = document.getElementById(id); if (ev) el.value = ev[fields[id]] || ''; else if (el.tagName !== 'SELECT') el.value = ''; });
+      document.getElementById('evNoInput').disabled = !!ev;
+      document.getElementById('evLimitMode').value = ev && quotaLimit(ev.HadPesertaPasukan) !== null ? 'LIMITED' : 'UNLIMITED';
+      document.getElementById('evLimitInput').value = ev ? quotaLimit(ev.HadPesertaPasukan) ?? '' : '';
+      document.getElementById('evLimitInput').disabled = document.getElementById('evLimitMode').value === 'UNLIMITED';
       document.getElementById('eventModal').classList.remove('hidden');
       document.getElementById('eventModal').classList.add('flex');
     }
@@ -1757,7 +1825,10 @@
         return;
       }
 
-      DB.Acara.push({
+      const limit = readLimit('evLimitMode', 'evLimitInput');
+      if (limit === false) return;
+      if (!editingEventNo && DB.Acara.some(e => Number(e.NoAcara) === no)) return showToast('No. Acara sudah wujud.', true);
+      const row = {
         NoAcara: no,
         Hari: day,
         Tarikh: date,
@@ -1770,14 +1841,20 @@
         RekodKejohanan: recVal || '',
         InfoRekodKejohanan: recInfo || '',
         InfoRekodMSSM: '',
-        StatusDataBuku: 'YA'
-      });
+        StatusDataBuku: 'YA',
+        HadPesertaPasukan: limit
+      };
+      const old = DB.Acara.find(e => Number(e.NoAcara) === Number(editingEventNo));
+      if (old) {
+        Object.assign(old, row);
+        ['Pendaftaran','Keputusan'].forEach(sheet => (DB[sheet] || []).forEach(r => { if (Number(r.NoAcara) === no) { r.NamaAcara = name; r.Kategori = cat; r.Jenis = type.includes('Berganti') ? 'Berpasukan' : 'Individu'; if (sheet === 'Keputusan') { r.TarikhMasa = date + ' ' + time; r.PeringkatAsal = stage; } } }));
+      } else { row.SusunanJadual = orderedEvents().length + 1; DB.Acara.push(row); }
 
       saveLocalDatabase();
       initDropdownFilters();
       renderScheduleTable();
       closeEventModal();
-      showToast(`Acara #${no} (${name} - ${cat}) telah ditambah!`);
+      showToast(`Acara #${no} (${name} - ${cat}) ${editingEventNo ? 'berjaya dikemaskini' : 'telah ditambah'}!`);
     }
 
     // =========================================================================
@@ -2212,7 +2289,12 @@
       const ath = (DB.Atlet || []).find(a => String(a.NoPeserta).toUpperCase() === bib.trim().toUpperCase());
       const team = getValidTeams().find(t => t.KodPasukan === bib.trim().toUpperCase());
 
+      if (!ath && !team) return showToast('Peserta/pasukan belum didaftarkan.', true);
+      if (ath && ath.Kategori !== ev.Kategori) return showToast('Kategori peserta tidak sepadan.', true);
+      const teamCode = ath ? ath.KodPasukan : team.KodPasukan;
+      if (eventQuota(ev, teamCode).remaining === 0) return showToast('Had peserta acara bagi pasukan ini telah penuh.', true);
       const existing = (DB.Keputusan || []).filter(r => Number(r.NoAcara) === noAcara);
+      if (existing.some(r => String(r.NoPeserta).toUpperCase() === bib.trim().toUpperCase())) return showToast('Peserta sudah berdaftar dalam acara ini.', true);
       DB.Keputusan.push({
         IDKeputusan: nextSeqId('RES-', DB.Keputusan, 'IDKeputusan'),
         NoAcara: noAcara,
@@ -2824,6 +2906,9 @@
     }
 
     function saveFlexibleConfig() {
+      const limit = readLimit('cfgTeamLimitMode', 'cfgTeamLimit');
+      if (limit === false) return false;
+      meetConfig.maxParticipantsPerTeam = limit;
       meetConfig.meetName = document.getElementById('cfgMeetName').value.trim() || meetConfig.meetName;
       meetConfig.meetDate = document.getElementById('cfgMeetDate').value.trim() || meetConfig.meetDate;
       meetConfig.maxLanes = Number(document.getElementById('cfgMaxLanes').value) || 8;
@@ -2865,6 +2950,61 @@
       a.href = URL.createObjectURL(blob);
       a.download = 'Pangkalan_Data_SMIS_Olahraga_Backup.json';
       a.click();
+    }
+  </script>
+  <script>
+    function escapeText(text) { return String(text ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function quotaLimit(v) { const t = String(v ?? '').trim(); if (!t || t.toUpperCase() === 'UNLIMITED') return null; return /^\d+$/.test(t) && Number.isSafeInteger(Number(t)) ? Number(t) : 0; }
+    function readLimit(modeId, inputId) {
+      if (document.getElementById(modeId).value === 'UNLIMITED') return 'UNLIMITED';
+      const v = document.getElementById(inputId).value.trim();
+      if (!/^\d+$/.test(v) || !Number.isSafeInteger(Number(v))) { showToast('Masukkan had peserta nombor bulat tidak negatif.', true); return false; }
+      return String(Number(v));
+    }
+    function teamQuota(team) {
+      const used = (DB.Atlet || []).filter(a => a.KodPasukan === team).length;
+      const limit = quotaLimit(meetConfig.maxParticipantsPerTeam);
+      return { used, limit, remaining: limit === null ? null : Math.max(0, limit - used) };
+    }
+    function eventQuota(ev, team) {
+      const bibs = new Set();
+      ['Pendaftaran','Keputusan'].forEach(sheet => (DB[sheet] || []).forEach(r => { if (Number(r.NoAcara) === Number(ev.NoAcara) && r.KodPasukan === team) bibs.add(String(r.NoPeserta).toUpperCase()); }));
+      const limit = quotaLimit(ev.HadPesertaPasukan);
+      return { used: bibs.size, limit, remaining: limit === null ? null : Math.max(0, limit - bibs.size) };
+    }
+    function quotaText(q) { return q.limit === null ? q.used + ' peserta • Tanpa had' : q.used + '/' + q.limit + ' peserta • Baki ' + q.remaining + ' tempat'; }
+    function renderTeamQuotaSummary() {
+      const box = document.getElementById('teamQuotaSummary');
+      const team = currentUser && currentUser.Peranan === 'Pengurus' ? currentUser.KodPasukan : document.getElementById('schoolFilterSelect').value;
+      if (!team || team === 'ALL') { box.textContent = 'Had keseluruhan setiap pasukan: ' + (quotaLimit(meetConfig.maxParticipantsPerTeam) ?? 'Tanpa had'); return; }
+      box.innerHTML = '<strong>' + escapeText(team) + ': ' + quotaText(teamQuota(team)) + '</strong><div class="grid sm:grid-cols-3 gap-2 mt-3">' + orderedEvents().map(ev => '<div>#' + escapeText(ev.NoAcara) + ' ' + escapeText(ev.NamaAcara) + ' (' + escapeText(ev.Kategori) + ')<br>' + quotaText(eventQuota(ev, team)) + '</div>').join('') + '</div>';
+    }
+    function orderedEvents() { return (DB.Acara || []).map((ev, i) => ({ev, i})).sort((a,b) => (Number(a.ev.SusunanJadual) || a.i + 1) - (Number(b.ev.SusunanJadual) || b.i + 1)).map(x => x.ev); }
+    function dropSchedule(event, target) {
+      event.preventDefault();
+      if (!smisIsAdmin()) return;
+      const source = Number(event.dataTransfer.getData('text/plain'));
+      reorderSchedule(source, target);
+    }
+    function reorderSchedule(source, target) {
+      if (!smisIsAdmin() || Number(source) === Number(target)) return;
+      const rows = orderedEvents(), from = rows.findIndex(e => Number(e.NoAcara) === Number(source)), to = rows.findIndex(e => Number(e.NoAcara) === Number(target));
+      if (from < 0 || to < 0) return;
+      rows.splice(to, 0, rows.splice(from, 1)[0]);
+      rows.forEach((e,i) => e.SusunanJadual = i + 1);
+      DB.Acara = rows; saveLocalDatabase(); renderScheduleTable(); populateJudgeEventSelect(); populateResultEventSelect();
+    }
+    function moveSchedule(no, direction) { const rows = orderedEvents(); const i = rows.findIndex(e => Number(e.NoAcara) === Number(no)); if (rows[i + direction]) reorderSchedule(no, rows[i + direction].NoAcara); }
+    function editAthlete(bib) {
+      if (!smisIsAdmin()) return showToast('Hanya Master Admin / Sub Admin boleh mengubah maklumat berdaftar.', true);
+      const a = DB.Atlet.find(a => a.NoPeserta === bib); if (!a) return;
+      openAthleteModal(); editingAthleteBib = bib;
+      document.getElementById('athTeamSelect').value = a.KodPasukan;
+      document.getElementById('athBibInput').value = a.NoPeserta; document.getElementById('athBibInput').disabled = true;
+      document.getElementById('athNameInput').value = a.NamaPeserta;
+      document.getElementById('athDobInput').value = a.TarikhLahir;
+      document.getElementById('athCatSelect').value = a.Kategori;
+      populateAthleteEventsChecklist();
     }
   </script>
   <script>
@@ -2939,12 +3079,11 @@
       function allowedRow(sheet, oldRow, newRow) {
         if (isMaster()) return true;
         if (isAdmin()) return sheet !== 'Pengguna' || (!isAdminRow(oldRow) && !isAdminRow(newRow));
-        if (isHakim()) return sheet === 'Keputusan';
+        if (isHakim()) return sheet === 'Keputusan' && !!oldRow && !!newRow;
         if (isPengurus()) {
           const t = currentUser.KodPasukan;
           const own = r => !r || String(r.KodPasukan || '') === t;
-          if (sheet === 'Pasukan') return !!oldRow && !!newRow && own(oldRow) && own(newRow);
-          if (sheet === 'Atlet' || sheet === 'Pendaftaran' || sheet === 'Keputusan') return own(oldRow) && own(newRow);
+          if (sheet === 'Atlet' || sheet === 'Pendaftaran' || sheet === 'Keputusan') return !oldRow && !!newRow && own(newRow);
         }
         return false;
       }
@@ -3000,7 +3139,7 @@
           changes.forEach(c => { snapshot[c.sheet] = clone(sent[c.sheet]); });
           replace.forEach(r => { snapshot[r.sheet] = clone(sent[r.sheet]); });
           if (json.rejected && json.rejected.length) {
-            showToast(json.rejected.length + ' perubahan ditolak (tiada kebenaran). Data dimuat semula.', true);
+            showToast(json.rejected.map(r => r.reason).join(' ') + ' Data dimuat semula.', true);
             pushing = false;
             await pullFromSheet(true, true);
             return false;
@@ -3028,6 +3167,7 @@
           if (!v) return;
           if (t.Kunci === 'meetName') meetConfig.meetName = v;
           if (t.Kunci === 'meetDate') meetConfig.meetDate = v;
+          if (t.Kunci === 'maxParticipantsPerTeam') meetConfig.maxParticipantsPerTeam = v;
           if (t.Kunci === 'maxLanes') meetConfig.maxLanes = Number(v) || meetConfig.maxLanes;
           if (t.Kunci === 'pointSystem') { const p = v.split(',').map(n => Number(n.trim()) || 0); if (p.length >= 3) meetConfig.pointSystem = p; }
         });
@@ -3051,6 +3191,7 @@
             const scrollY = window.scrollY;
             suppressPush = true;
             DB = clone(fresh);
+            DB.Acara = orderedEvents();
             applyTetapan();
             applyMeetConfigUI();
             initDropdownFilters();
@@ -3103,7 +3244,7 @@
         document.querySelectorAll('[onclick^="deleteAthlete"]').forEach(b => {
           const m = (b.getAttribute('onclick') || '').match(/deleteAthlete\('([^']*)'\)/);
           const ath = m ? (DB.Atlet || []).find(a => String(a.NoPeserta) === m[1]) : null;
-          show(b, isAdmin() || (isPengurus() && ath && ath.KodPasukan === currentUser.KodPasukan));
+          show(b, isAdmin());
         });
         // Jika tab semasa tidak dibenarkan, kembali ke dashboard
         const cur = document.querySelector('.tab-section:not(.hidden)');
@@ -3120,9 +3261,9 @@
       const adminOnly = (orig) => function () { if (!isAdmin()) return deny(); return orig.apply(this, arguments); };
       const adminOrHakim = (orig) => function () { if (!(isAdmin() || isHakim())) return deny('Hanya Admin / Hakim dibenarkan mengemaskini keputusan.'); return orig.apply(this, arguments); };
 
-      ['openNewSchoolModal', 'saveNewSchool', 'splitEventIntoHeats', 'autoGenerateAllHeats', 'openEventModal', 'saveNewEvent', 'clearResultsForNewMeet', 'saveBukuToGoogleDrive']
+      ['openNewSchoolModal', 'saveNewSchool', 'splitEventIntoHeats', 'autoGenerateAllHeats', 'openEventModal', 'saveNewEvent', 'openAddParticipantToEventModal', 'clearResultsForNewMeet', 'saveBukuToGoogleDrive']
         .forEach(n => wrap(n, adminOnly));
-      ['autoSortAndRankCurrentEvent', 'saveCurrentEventResults', 'advanceQualifiersToFinal', 'openAddParticipantToEventModal', 'removeResultRow']
+      ['autoSortAndRankCurrentEvent', 'saveCurrentEventResults', 'advanceQualifiersToFinal', 'removeResultRow']
         .forEach(n => wrap(n, adminOrHakim));
 
       wrap('openAthleteModal', orig => function () {
@@ -3137,20 +3278,20 @@
         const sel = document.getElementById('athTeamSelect');
         if (isPengurus() && sel && sel.value !== currentUser.KodPasukan) return deny('Anda hanya boleh mendaftar atlet untuk pasukan sendiri.');
         const bib = (document.getElementById('athBibInput').value || '').trim().toUpperCase();
-        if (bib && (DB.Atlet || []).some(a => String(a.NoPeserta).toUpperCase() === bib)) return deny('No. Peserta ' + bib + ' sudah wujud.');
+        if (!editingAthleteBib && bib && (DB.Atlet || []).some(a => String(a.NoPeserta).toUpperCase() === bib)) return deny('No. Peserta ' + bib + ' sudah wujud.');
         return orig.apply(this, arguments);
       });
       wrap('deleteAthlete', orig => function (noPeserta) {
         const ath = (DB.Atlet || []).find(a => a.NoPeserta === noPeserta);
-        if (!(isAdmin() || (isPengurus() && ath && ath.KodPasukan === currentUser.KodPasukan))) return deny('Anda hanya boleh memadam atlet pasukan sendiri.');
+        if (!isAdmin()) return deny('Anda hanya boleh memadam atlet pasukan sendiri.');
         return orig.apply(this, arguments);
       });
 
       wrap('saveFlexibleConfig', orig => function () {
         if (!isAdmin()) return deny();
         suppressPush = true;
-        try { orig.apply(this, arguments); } finally { suppressPush = false; }
-        const vals = { meetName: meetConfig.meetName, meetDate: meetConfig.meetDate, maxLanes: String(meetConfig.maxLanes), pointSystem: meetConfig.pointSystem.join(',') };
+        try { if (orig.apply(this, arguments) === false) return; } finally { suppressPush = false; }
+        const vals = { maxParticipantsPerTeam: String(meetConfig.maxParticipantsPerTeam), meetName: meetConfig.meetName, meetDate: meetConfig.meetDate, maxLanes: String(meetConfig.maxLanes), pointSystem: meetConfig.pointSystem.join(',') };
         DB.Tetapan = DB.Tetapan || [];
         Object.keys(vals).forEach(k => {
           const row = DB.Tetapan.find(t => t.Kunci === k);
