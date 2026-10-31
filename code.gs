@@ -29,7 +29,7 @@ const SHEET_SCHEMAS = {
   'Pengguna': ['Username', 'Password', 'Peranan', 'KodPasukan', 'NamaPasukan', 'CatatanAkses'],
   'Pasukan': ['Bil', 'KodPasukan', 'NamaPasukan', 'PrefiksNoPeserta', 'JumlahAtlet', 'BDL12', 'BDL19', 'BLL12', 'BLL19', 'BPL12', 'BPL15', 'BPL19', 'BDP12', 'BDP19', 'BLP12', 'BLP19', 'BPP12', 'BPP15', 'BPP19', 'Pegawai_L', 'Pegawai_P', 'JumlahPegawai'],
   'Acara': ['NoAcara', 'Hari', 'Tarikh', 'Masa', 'NamaAcara', 'Kategori', 'Jenis', 'PeringkatAsal', 'NoAcaraAkhir', 'RekodKejohanan', 'InfoRekodKejohanan', 'InfoRekodMSSM', 'StatusDataBuku', 'HadPesertaPasukan', 'SusunanJadual'],
-  'Atlet': ['Bil', 'NoPeserta', 'NamaPeserta', 'TarikhLahir', 'KodPasukan', 'NamaPasukan', 'Kategori', 'JumlahAcaraDisertai', 'SenaraiAcaraDisertai'],
+  'Atlet': ['Bil', 'NoPeserta', 'NamaPeserta', 'TarikhLahir', 'KodPasukan', 'NamaPasukan', 'Kategori', 'JumlahAcaraDisertai', 'SenaraiAcaraDisertai', 'GambarURL', 'GambarFileId', 'DokumenURL', 'DokumenFileId', 'TarikhMuatNaik'],
   'Pendaftaran': ['IDPendaftaran', 'NoAcara', 'NamaAcara', 'Kategori', 'Jenis', 'NoPeserta', 'NamaPeserta', 'KodPasukan', 'NamaPasukan', 'TarikhLahir'],
   'Keputusan': ['IDKeputusan', 'NoAcara', 'TarikhMasa', 'NamaAcara', 'Kategori', 'Jenis', 'PeringkatAsal', 'Peringkat', 'GiliranLorong', 'NoPeserta', 'NamaPeserta', 'KodPasukan', 'NamaPasukan', 'TarikhLahir', 'Catatan', 'Status', 'Kedudukan', 'CatatanRekod'],
   'Kedudukan_Pingat': ['Kedudukan', 'KodPasukan', 'NamaPasukan', 'EMAS', 'PERAK', 'GANGSA', 'KE-4', 'KE-5', 'KE-6', 'KE-7', 'KE-8', 'JumlahPingat(1-3)', 'JumlahMata(8-1)'],
@@ -131,10 +131,73 @@ function doPost(e) {
       });
     }
 
+    // Muat naik gambar / dokumen PDF peserta (tempoh berasingan: docCloseAt)
+    if (action === 'uploadAthleteFile') {
+      if (!user) return jsonResponse({ status: 'error', message: 'Sila log masuk untuk memuat naik.' });
+      return jsonResponse(uploadAthleteFile(ss, user, payload));
+    }
+
     return jsonResponse({ status: 'error', message: 'Action tidak dikenali: ' + action });
   } catch (err) {
     return jsonResponse({ status: 'error', message: err.toString() });
   }
+}
+
+// ============================================================================
+// MUAT NAIK GAMBAR & DOKUMEN PESERTA
+// ============================================================================
+// docCloseAt (ISO) = tarikh & masa akhir muat naik (boleh lebih lewat dari regCloseAt)
+function docClosedReason(ss) {
+  const rows = readSheetObjects(ss, 'Tetapan').rows;
+  const r = rows.find(t => t.Kunci === 'docCloseAt');
+  const close = r ? String(r.Nilai || '').trim() : '';
+  if (!close || close === '-') return '';
+  const d = new Date(close);
+  if (!isNaN(d.getTime()) && Date.now() >= d.getTime()) return 'Tempoh muat naik gambar & dokumen telah tamat.';
+  return '';
+}
+function getSubFolder(parent, name) {
+  const it = parent.getFoldersByName(name);
+  return it.hasNext() ? it.next() : parent.createFolder(name);
+}
+function uploadAthleteFile(ss, user, p) {
+  const bib = String(p.noPeserta || '').trim();
+  const kind = p.kind === 'gambar' ? 'gambar' : (p.kind === 'dokumen' ? 'dokumen' : '');
+  if (!bib || !kind || !p.base64) return { status: 'error', message: 'Maklumat muat naik tidak lengkap.' };
+  const mime = String(p.mimeType || '');
+  if (kind === 'dokumen' && mime !== 'application/pdf') return { status: 'error', message: 'Dokumen mesti satu fail PDF (gabungan KP, Kad OKU, R01/M01, Akuan Kesihatan dll).' };
+  if (kind === 'gambar' && !/^image\/(jpeg|png|webp)$/.test(mime)) return { status: 'error', message: 'Gambar mesti JPG, PNG atau WEBP.' };
+  const bytes = Utilities.base64Decode(p.base64);
+  const maxMb = kind === 'gambar' ? 5 : 20;
+  if (bytes.length > maxMb * 1024 * 1024) return { status: 'error', message: 'Saiz fail melebihi ' + maxMb + 'MB.' };
+  let out = null;
+  withLock(function () {
+    const data = readSheetObjects(ss, 'Atlet');
+    const row = data.rows.find(r => String(r.NoPeserta).toUpperCase() === bib.toUpperCase());
+    if (!row) { out = { status: 'error', message: 'Peserta ' + bib + ' tidak dijumpai.' }; return; }
+    const team = String(row.KodPasukan || '').trim();
+    const admin = isRole(user, 'Admin') || isRole(user, 'SubAdmin');
+    if (!admin) {
+      if (!isRole(user, 'Pengurus') || String(user.KodPasukan || '').trim() !== team) { out = { status: 'error', message: 'Anda hanya boleh memuat naik untuk peserta pasukan sendiri.' }; return; }
+      const reason = docClosedReason(ss);
+      if (reason) { out = { status: 'error', message: reason }; return; }
+    }
+    const root = DriveApp.getFolderById(DRIVE_FOLDER_ID);
+    const folder = getSubFolder(getSubFolder(root, 'Dokumen_Peserta'), team || 'TIADA_PASUKAN');
+    const ext = kind === 'dokumen' ? 'pdf' : (mime.split('/')[1] === 'jpeg' ? 'jpg' : mime.split('/')[1]);
+    const name = bib + '_' + (kind === 'dokumen' ? 'DOKUMEN' : 'GAMBAR') + '.' + ext;
+    const file = folder.createFile(Utilities.newBlob(bytes, mime, name));
+    try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+    const idKey = kind === 'dokumen' ? 'DokumenFileId' : 'GambarFileId';
+    const urlKey = kind === 'dokumen' ? 'DokumenURL' : 'GambarURL';
+    if (row[idKey]) { try { DriveApp.getFileById(row[idKey]).setTrashed(true); } catch (e) {} }
+    row[idKey] = file.getId();
+    row[urlKey] = kind === 'gambar' ? 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w400' : file.getUrl();
+    row.TarikhMuatNaik = new Date().toISOString();
+    writeSheetData(ss, 'Atlet', data.headers, data.rows);
+    out = { status: 'success', message: (kind === 'dokumen' ? 'Dokumen' : 'Gambar') + ' berjaya dimuat naik.', url: row[urlKey] };
+  });
+  return out || { status: 'error', message: 'Muat naik gagal.' };
 }
 
 // ============================================================================

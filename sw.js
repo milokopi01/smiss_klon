@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smis-olahraga-v2026.10-quotas';
+const CACHE_NAME = 'smis-olahraga-v2026.10-dokumen';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
