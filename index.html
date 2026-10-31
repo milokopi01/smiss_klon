@@ -13,10 +13,18 @@
   <meta name="theme-color" content="#1e40af" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script>window.SMIS_API_URL = "https://script.google.com/macros/s/AKfycby5x3UwkV2YKZYrCxOI7Gu6UUgxeh-znDhXFfQ3-BqUMabRRb7ESanJukfCu_GDo7x2/exec"; // ★ LINK GOOGLE APPS SCRIPT ANDA — TUKAR DI SINI SAHAJA (baris 10) ★</script>
+  <script>window.SMIS_API_URL = "https://script.google.com/macros/s/AKfycbwT0OR7KbSdGHhtZPHasV6sA7vQSNEjkrPeNk0BdGWBWsbQSOkPnyyAbL7_WJp7507z/exec"; // ★ LINK GOOGLE APPS SCRIPT ANDA — TUKAR DI SINI SAHAJA (baris 10) ★</script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
+    .smis-best-card{position:relative;display:flex;gap:12px;align-items:center;padding:12px;border-radius:16px;background:linear-gradient(135deg,#ffffff,#f8fafc);border:1px solid #e2e8f0;box-shadow:0 4px 14px -6px rgba(15,23,42,.15);transition:transform .2s,box-shadow .2s;overflow:hidden}
+    .smis-best-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px -8px rgba(30,64,175,.35)}
+    .smis-best-card::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:linear-gradient(180deg,#f59e0b,#1e40af)}
+    .smis-best-photo{flex-shrink:0;width:64px;height:80px;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#1e40af,#3b82f6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px;border:2px solid #fbbf24;box-shadow:0 0 0 3px rgba(251,191,36,.2);cursor:pointer;padding:0}
+    .smis-best-photo img{width:100%;height:100%;object-fit:cover;pointer-events:none}
+    .smis-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:9999px;font-size:10px;font-weight:700;line-height:1.5}
+    .smis-chip-emas{background:#fef3c7;color:#92400e}.smis-chip-perak{background:#e2e8f0;color:#334155}.smis-chip-gangsa{background:#ffedd5;color:#9a3412}.smis-chip-rekod{background:#fee2e2;color:#b91c1c}
+    @media (max-width:640px){.smis-best-photo{width:56px;height:70px}}
     .smis-avatar{width:44px;height:44px;border-radius:9999px;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;border:2px solid #cbd5e1;background:#e2e8f0;color:#475569;font-weight:800;font-size:13px;cursor:pointer;-webkit-user-select:none;user-select:none}
     .smis-avatar img{width:100%;height:100%;object-fit:cover;pointer-events:none;-webkit-user-drag:none}
     .smis-avatar.empty{background:linear-gradient(135deg,#dbeafe,#e0e7ff);color:#1e40af}
@@ -227,15 +235,15 @@
         </div>
 
         <div class="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-          <div class="px-4 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+          <div class="px-4 py-4 bg-gradient-to-r from-blue-900 via-blue-700 to-amber-500 flex items-center justify-between">
             <div>
-              <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
-                <i class="fa-solid fa-star text-amber-500"></i> PESERTA TERBAIK KATEGORI
+              <h3 class="font-extrabold text-sm text-white flex items-center gap-2 tracking-wide">
+                <i class="fa-solid fa-crown text-amber-300"></i> PESERTA TERBAIK KATEGORI
               </h3>
-              <p class="text-[11px] text-slate-500">Pemenang pingat tertinggi & pemecah rekod mengikut kategori</p>
+              <p class="text-[11px] text-blue-100">Pemenang pingat tertinggi & pemecah rekod mengikut kategori</p>
             </div>
           </div>
-          <div id="dashboardBestAthletes" class="p-3 space-y-2.5 overflow-y-auto max-h-[420px] divide-y divide-slate-100 text-xs"></div>
+          <div id="dashboardBestAthletes" class="p-3 grid gap-2.5 overflow-y-auto max-h-[70vh] sm:max-h-[520px] text-xs bg-gradient-to-b from-slate-50 to-white"></div>
         </div>
       </div>
     </section>
@@ -1498,17 +1506,33 @@
       // Peserta Terbaik
       const bestDiv = document.getElementById('dashboardBestAthletes');
       bestDiv.innerHTML = '';
-      (DB.Peserta_Terbaik || []).forEach(p => {
-        bestDiv.innerHTML += `
-          <div class="pt-2 first:pt-0">
-            <div class="flex items-center justify-between">
-              <span class="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-extrabold text-[10px]">${p.Kategori}</span>
-              <span class="font-bold text-amber-600 text-[11px]"><i class="fa-solid fa-medal mr-1"></i>${p.RingkasanPingat}</span>
+      const smisAtletList = DB.Atlet || [];
+      bestDiv.innerHTML = (DB.Peserta_Terbaik || []).map(p => {
+        const a = smisAtletList.find(x => String(x.NoPeserta) === String(p.NoPeserta)) || {};
+        const ini = String(p.NamaPeserta || '?').split(/\s+/).slice(0, 2).map(w => w[0] || '').join('');
+        const photo = a.GambarURL
+          ? '<img src="' + escapeText(a.GambarURL) + '" alt="" referrerpolicy="no-referrer" draggable="false" oncontextmenu="return false" />'
+          : ini;
+        const chips = String(p.SenaraiAcaraDanCatatan || '').split('|').map(t => t.trim()).filter(Boolean).map(t => {
+          const u = t.toUpperCase();
+          const cls = u.includes('REKOD') ? 'rekod' : u.startsWith('EMAS') ? 'emas' : u.startsWith('PERAK') ? 'perak' : 'gangsa';
+          const ic = cls === 'rekod' ? 'fa-fire' : 'fa-medal';
+          return '<span class="smis-chip smis-chip-' + cls + '"><i class="fa-solid ' + ic + '"></i>' + escapeText(t.replace(/^(EMAS|PERAK|GANGSA)\s*:\s*/i, '')) + '</span>';
+        }).join('');
+        return `
+          <div class="smis-best-card">
+            <button type="button" class="smis-best-photo" onclick="${a.NoPeserta ? `openProfileModal('${escapeText(a.NoPeserta)}')` : ''}" title="Lihat profil">${photo}</button>
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="px-2 py-0.5 rounded-md bg-blue-700 text-white font-extrabold text-[10px] tracking-wide">${p.Kategori}</span>
+                <span class="font-extrabold text-amber-600 text-[11px]"><i class="fa-solid fa-trophy mr-1"></i>${p.RingkasanPingat}</span>
+              </div>
+              <div class="font-extrabold text-slate-900 text-[13px] leading-tight mt-1 break-words">${p.NamaPeserta}</div>
+              <div class="text-[11px] text-slate-500 truncate"><i class="fa-solid fa-school mr-1"></i>${p.NoPeserta} · ${p.Pasukan}</div>
+              <div class="flex flex-wrap gap-1 mt-1.5">${chips}</div>
             </div>
-            <div class="font-bold text-slate-900 mt-1">${p.NamaPeserta} <span class="text-slate-400 font-normal">(${p.NoPeserta} - ${p.Pasukan})</span></div>
-            <div class="text-[11px] text-slate-500 mt-0.5">${p.SenaraiAcaraDanCatatan}</div>
           </div>`;
-      });
+      }).join('') || '<div class="text-center text-slate-400 py-6">Tiada data lagi</div>';
     }
 
     // =========================================================================
