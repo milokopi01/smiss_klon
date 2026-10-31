@@ -7,7 +7,8 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#1e40af" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>window.SMIS_API_URL = "https://script.google.com/macros/s/AKfycby9fNzq-Dw79a_ReYCdoJsI7Hl4b93bl5VkxpWQZxTYJhxMsIXbPZxG3EVhqN19o7ZZ/exec"; // ★ LINK GOOGLE APPS SCRIPT ANDA — TUKAR DI SINI SAHAJA (baris 10) ★</script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>window.SMIS_API_URL = "https://script.google.com/macros/s/AKfycbwT0OR7KbSdGHhtZPHasV6sA7vQSNEjkrPeNk0BdGWBWsbQSOkPnyyAbL7_WJp7507z/exec"; // ★ LINK GOOGLE APPS SCRIPT ANDA — TUKAR DI SINI SAHAJA (baris 10) ★</script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet" />
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -585,6 +586,13 @@
               <button onclick="resetToOriginalExcelData()" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold">
                 <i class="fa-solid fa-rotate-left mr-1"></i> Muat Semula Data Asal Excel MSS Kedah 2025
               </button>
+              <button onclick="exportAllDataToExcel()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold">
+                <i class="fa-solid fa-file-excel mr-1"></i> Muat Turun Semua Data (Excel Backup)
+              </button>
+              <button onclick="openImportExcel()" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold">
+                <i class="fa-solid fa-file-arrow-up mr-1"></i> Muat Naik Excel (Restore Data)
+              </button>
+              <input type="file" id="importExcelInput" accept=".xlsx,.xls" class="hidden" onchange="importExcelFile(this)" />
               <button onclick="clearResultsForNewMeet()" class="px-4 py-2 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-800 font-semibold">
                 <i class="fa-solid fa-eraser mr-1"></i> Kosongkan Keputusan (Mula Kejohanan Baharu)
               </button>
@@ -3058,7 +3066,7 @@
           if (t === 'keputusan') show(btn, isAdmin() || isHakim());
         });
         document.querySelectorAll('[onclick^="syncToGoogleSheet"]').forEach(b => show(b, isAdmin()));
-        ['openNewSchoolModal', 'openEventModal', 'autoGenerateAllHeats', 'splitEventIntoHeats', 'clearResultsForNewMeet', 'resetToOriginalExcelData', 'saveFlexibleConfig', 'saveBukuToGoogleDrive']
+        ['openNewSchoolModal', 'openEventModal', 'autoGenerateAllHeats', 'splitEventIntoHeats', 'clearResultsForNewMeet', 'resetToOriginalExcelData', 'exportAllDataToExcel', 'openImportExcel', 'saveFlexibleConfig', 'saveBukuToGoogleDrive']
           .forEach(fn => document.querySelectorAll('[onclick^="' + fn + '"]').forEach(b => show(b, isAdmin())));
         document.querySelectorAll('[onclick^="openAthleteModal"]').forEach(b => show(b, isAdmin() || isPengurus()));
         document.querySelectorAll('[onclick^="deleteAthlete"]').forEach(b => {
@@ -3188,6 +3196,128 @@
         snapshot = null;
         await pullFromSheet(true);
         showToast('Data telah dimuat semula daripada Google Sheet.');
+      };
+
+      // ---------- Backup & Restore Excel ----------
+      const SHEET_ORDER = ['Tetapan', 'Pengguna', 'Pasukan', 'Acara', 'Atlet', 'Pendaftaran', 'Keputusan', 'Kedudukan_Pingat', 'Pasukan_Terbaik_Kategori', 'Peserta_Terbaik', 'Rekod_Baharu'];
+      window.exportAllDataToExcel = async function () {
+        if (!isAdmin()) return deny();
+        if (typeof XLSX === 'undefined') return showToast('Pustaka Excel belum dimuatkan. Semak sambungan internet.', true);
+        setBadge('Menyediakan Excel...', 'busy');
+        try {
+          await pushChanges();
+          const json = await api({ action: 'getAllData' });
+          if (!json || json.status !== 'success' || !json.data) throw new Error((json && json.message) || 'Tiada data');
+          const data = json.data;
+          const wb = XLSX.utils.book_new();
+          const names = SHEET_ORDER.concat(Object.keys(data).filter(k => SHEET_ORDER.indexOf(k) === -1));
+          names.forEach(name => {
+            const rows = Array.isArray(data[name]) ? data[name] : [];
+            const header = rows.length ? Object.keys(rows[0]) : [];
+            const ws = rows.length ? XLSX.utils.json_to_sheet(rows, { header }) : XLSX.utils.aoa_to_sheet([[]]);
+            XLSX.utils.book_append_sheet(wb, ws, name.substring(0, 31));
+          });
+          const d = new Date(), pad = n => String(n).padStart(2, '0');
+          const stamp = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '_' + pad(d.getHours()) + pad(d.getMinutes());
+          const meet = String((meetConfig && meetConfig.meetName) || 'Kejohanan').replace(/[^A-Za-z0-9]+/g, '_').substring(0, 40);
+          XLSX.writeFile(wb, 'SMIS_Backup_' + meet + '_' + stamp + '.xlsx');
+          setBadge('Live • Data Sheet Terkini', 'ok');
+          showToast('Fail Excel backup berjaya dimuat turun (' + names.length + ' jadual).');
+          return true;
+        } catch (e) {
+          setBadge('Ralat Backup', 'err');
+          showToast('Gagal memuat turun data: ' + e.message, true);
+          return false;
+        }
+      };
+      // ---------- Pengesahan berganda untuk tindakan berbahaya ----------
+      function askPassword(title, step) {
+        return new Promise(resolve => {
+          const wrapEl = document.createElement('div');
+          wrapEl.className = 'fixed inset-0 z-[9999] bg-slate-900/60 flex items-center justify-center p-4';
+          wrapEl.innerHTML = `
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3">
+              <h3 class="font-extrabold text-rose-700 flex items-center gap-2"><i class="fa-solid fa-shield-halved"></i> Pengesahan Master Admin (${step}/2)</h3>
+              <p class="text-xs text-slate-600">${title}</p>
+              <input type="password" class="w-full px-3 py-2 rounded-lg border border-slate-300" placeholder="${step === 1 ? 'Masukkan password Master Admin' : 'Masukkan semula password Master Admin'}" autocomplete="off" />
+              <div class="flex justify-end gap-2">
+                <button data-a="no" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold">Batal</button>
+                <button data-a="ok" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold">Sahkan</button>
+              </div>
+            </div>`;
+          document.body.appendChild(wrapEl);
+          const inp = wrapEl.querySelector('input');
+          const done = v => { wrapEl.remove(); resolve(v); };
+          wrapEl.querySelector('[data-a="no"]').onclick = () => done(null);
+          wrapEl.querySelector('[data-a="ok"]').onclick = () => done(inp.value);
+          inp.addEventListener('keydown', e => { if (e.key === 'Enter') done(inp.value); if (e.key === 'Escape') done(null); });
+          setTimeout(() => inp.focus(), 50);
+        });
+      }
+      async function confirmDangerous(actionLabel) {
+        if (!isAdmin() || !auth) { deny(); return false; }
+        if (!confirm('⚠️ AMARAN: "' + actionLabel + '" boleh MEMADAM data kejohanan dalam Google Sheet secara kekal.\n\nAnda DISARANKAN memuat turun backup Excel terlebih dahulu.\n\nTekan OK untuk muat turun backup Excel sekarang (disyorkan), atau Cancel untuk teruskan tanpa backup.')) {
+          if (!confirm('Anda pasti mahu teruskan TANPA backup Excel? Data yang hilang tidak boleh dikembalikan.')) return false;
+        } else {
+          const ok = await window.exportAllDataToExcel();
+          if (ok === false && !confirm('Backup Excel gagal. Teruskan juga tanpa backup?')) return false;
+        }
+        for (let step = 1; step <= 2; step++) {
+          const pw = await askPassword('Tindakan: <b>' + actionLabel + '</b>. Masukkan password akaun Master Admin anda untuk meneruskan.', step);
+          if (pw === null) { showToast('Tindakan dibatalkan.'); return false; }
+          if (pw !== String(auth.password)) { showToast('Password Master Admin tidak tepat. Tindakan dibatalkan.', true); return false; }
+        }
+        try {
+          const json = await api({ action: 'login' });
+          if (!json || json.status !== 'success' || !json.user || String(json.user.Peranan).toLowerCase() !== 'admin') {
+            showToast('Pengesahan Master Admin dengan Google Sheet gagal. Tindakan dibatalkan.', true); return false;
+          }
+        } catch (e) { showToast('Tidak dapat mengesahkan dengan Google Sheet. Tindakan dibatalkan.', true); return false; }
+        return true;
+      }
+      wrap('clearResultsForNewMeet', orig => async function () {
+        if (!(await confirmDangerous('Kosongkan Keputusan (Mula Kejohanan Baharu)'))) return;
+        return orig.apply(this, arguments);
+      });
+
+      window.openImportExcel = function () {
+        if (!isAdmin()) return deny();
+        const el = document.getElementById('importExcelInput');
+        if (el) { el.value = ''; el.click(); }
+      };
+      window.importExcelFile = async function (input) {
+        if (!isAdmin()) return deny();
+        const file = input && input.files && input.files[0];
+        if (!file) return;
+        if (typeof XLSX === 'undefined') return showToast('Pustaka Excel belum dimuatkan. Semak sambungan internet.', true);
+        try {
+          const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+          const data = {}, summary = [];
+          wb.SheetNames.forEach(n => {
+            const name = SHEET_ORDER.find(s => s.toLowerCase() === n.trim().toLowerCase());
+            if (!name) return;
+            data[name] = XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: '', raw: false });
+            summary.push(name + ': ' + data[name].length);
+          });
+          if (!Object.keys(data).length) return showToast('Tiada jadual SMIS yang dikenali dalam fail ini.', true);
+          if (data.Pengguna && !data.Pengguna.some(u => String(u.Peranan).toLowerCase() === 'admin')) {
+            if (!confirm('AMARAN: Jadual Pengguna dalam fail ini tiada akaun Admin. Anda mungkin tidak boleh log masuk semula. Teruskan?')) return;
+          }
+          if (!confirm('Restore data daripada "' + file.name + '"?\n\n' + summary.join('\n') + '\n\nData semasa dalam Google Sheet bagi jadual di atas akan DIGANTI sepenuhnya. Disyorkan muat turun backup semasa dahulu.')) return;
+          if (!(await confirmDangerous('Restore Data daripada Excel'))) return;
+          clearTimeout(pushTimer);
+          setBadge('Memulihkan data...', 'busy');
+          pushing = true;
+          let json;
+          try { json = await api({ action: 'syncAll', data }); } finally { pushing = false; }
+          if (!json || json.status !== 'success') throw new Error((json && json.message) || 'Gagal');
+          snapshot = null;
+          await pullFromSheet(true, true);
+          showToast('Data berjaya dipulihkan daripada Excel & dipaparkan semula!');
+        } catch (e) {
+          setBadge('Ralat Restore', 'err');
+          showToast('Gagal memulihkan data: ' + e.message, true);
+        } finally { input.value = ''; }
       };
 
       // ---------- Mula ----------
