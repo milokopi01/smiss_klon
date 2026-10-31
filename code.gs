@@ -137,6 +137,12 @@ function doPost(e) {
       return jsonResponse(uploadAthleteFile(ss, user, payload));
     }
 
+    // Muat turun gambar asal (untuk 4K) - Admin / Sub Admin / Pengurus pasukan peserta sahaja
+    if (action === 'downloadAthletePhoto') {
+      if (!user) return jsonResponse({ status: 'error', message: 'Sila log masuk.' });
+      return jsonResponse(downloadAthletePhoto(ss, user, payload));
+    }
+
     return jsonResponse({ status: 'error', message: 'Action tidak dikenali: ' + action });
   } catch (err) {
     return jsonResponse({ status: 'error', message: err.toString() });
@@ -156,6 +162,16 @@ function docClosedReason(ss) {
   if (!isNaN(d.getTime()) && Date.now() >= d.getTime()) return 'Tempoh muat naik gambar & dokumen telah tamat.';
   return '';
 }
+function downloadAthletePhoto(ss, user, p) {
+  const bib = String(p.noPeserta || '').trim().toUpperCase();
+  const row = readSheetObjects(ss, 'Atlet').rows.find(r => String(r.NoPeserta).toUpperCase() === bib);
+  if (!row || !row.GambarFileId) return { status: 'error', message: 'Gambar peserta tidak dijumpai.' };
+  const admin = isRole(user, 'Admin') || isRole(user, 'SubAdmin');
+  const own = isRole(user, 'Pengurus') && String(user.KodPasukan || '').trim() === String(row.KodPasukan || '').trim();
+  if (!admin && !own) return { status: 'error', message: 'Hanya Admin dan Pengurus pasukan peserta ini boleh memuat turun gambar.' };
+  const blob = DriveApp.getFileById(row.GambarFileId).getBlob();
+  return { status: 'success', mimeType: blob.getContentType(), base64: Utilities.base64Encode(blob.getBytes()), fileName: bib + '_GAMBAR_4K.jpg' };
+}
 function getSubFolder(parent, name) {
   const it = parent.getFoldersByName(name);
   return it.hasNext() ? it.next() : parent.createFolder(name);
@@ -168,7 +184,7 @@ function uploadAthleteFile(ss, user, p) {
   if (kind === 'dokumen' && mime !== 'application/pdf') return { status: 'error', message: 'Dokumen mesti satu fail PDF (gabungan KP, Kad OKU, R01/M01, Akuan Kesihatan dll).' };
   if (kind === 'gambar' && !/^image\/(jpeg|png|webp)$/.test(mime)) return { status: 'error', message: 'Gambar mesti JPG, PNG atau WEBP.' };
   const bytes = Utilities.base64Decode(p.base64);
-  const maxMb = kind === 'gambar' ? 5 : 20;
+  const maxMb = kind === 'gambar' ? 15 : 20;
   if (bytes.length > maxMb * 1024 * 1024) return { status: 'error', message: 'Saiz fail melebihi ' + maxMb + 'MB.' };
   let out = null;
   withLock(function () {

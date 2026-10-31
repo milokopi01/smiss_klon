@@ -13,10 +13,30 @@
   <meta name="theme-color" content="#1e40af" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script>window.SMIS_API_URL = "https://script.google.com/macros/s/AKfycbyeUT2HM00Uuvwogr5R4153UJac1BfdRueQTzvStPx9chHpKNhQecxEMZhlldEXY4Q-/exec"; // ★ LINK GOOGLE APPS SCRIPT ANDA — TUKAR DI SINI SAHAJA (baris 10) ★</script>
+  <script>window.SMIS_API_URL = "https://script.google.com/macros/s/AKfycbwT0OR7KbSdGHhtZPHasV6sA7vQSNEjkrPeNk0BdGWBWsbQSOkPnyyAbL7_WJp7507z/exec"; // ★ LINK GOOGLE APPS SCRIPT ANDA — TUKAR DI SINI SAHAJA (baris 10) ★</script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
+    .smis-avatar{width:44px;height:44px;border-radius:9999px;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;border:2px solid #cbd5e1;background:#e2e8f0;color:#475569;font-weight:800;font-size:13px;cursor:pointer;-webkit-user-select:none;user-select:none}
+    .smis-avatar img{width:100%;height:100%;object-fit:cover;pointer-events:none;-webkit-user-drag:none}
+    .smis-avatar.empty{background:linear-gradient(135deg,#dbeafe,#e0e7ff);color:#1e40af}
+    .smis-avatar:hover{border-color:#2563eb}
+    .smis-doc-btn{width:44px;height:44px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:20px;background:#fef9c3;color:#a16207;border:2px solid #fde047;margin:2px}
+    .smis-doc-btn.has{background:#dcfce7;color:#15803d;border-color:#86efac}
+    .smis-big-btn{display:flex;width:100%;min-height:56px;align-items:center;justify-content:center;gap:10px;border-radius:14px;font-weight:800;font-size:16px;padding:12px 16px;cursor:pointer;text-align:center}
+    .smis-big-primary{background:#2563eb;color:#fff}
+    .smis-big-outline{background:#fff;color:#1e40af;border:2px dashed #93c5fd}
+    .smis-big-dark{background:#0f172a;color:#fff}
+    .smis-photo-wrap{position:relative;border-radius:16px;overflow:hidden;background:#f1f5f9;aspect-ratio:3/4;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+    .smis-photo-wrap img{width:100%;height:100%;object-fit:cover;pointer-events:none;-webkit-user-drag:none}
+    .smis-photo-empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94a3b8;font-size:14px;gap:8px}
+    .smis-photo-empty i{font-size:96px}
+    .smis-watermark{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+    .smis-watermark::before{content:attr(data-wm) "   " attr(data-wm) "   " attr(data-wm) "   " attr(data-wm) "   " attr(data-wm) "   " attr(data-wm);position:absolute;inset:-50%;transform:rotate(-30deg);color:rgba(255,255,255,.35);text-shadow:0 0 2px rgba(0,0,0,.4);font-size:13px;font-weight:700;line-height:48px;word-spacing:20px}
+    .smis-protect{-webkit-user-select:none;user-select:none}
+    body.smis-shield #profileModal > div{filter:blur(28px)}
+    @media print{#profileModal{display:none!important}}
+
 
     body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #0f172a; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -279,6 +299,7 @@
             <thead class="bg-slate-100 text-slate-700 font-bold sticky top-0 z-10 border-b border-slate-200">
               <tr>
                 <th class="py-2.5 px-3">Bil</th>
+                <th class="py-2.5 px-3 text-center">Gambar</th>
                 <th class="py-2.5 px-3">No. Peserta</th>
                 <th class="py-2.5 px-3">Nama Atlet</th>
                 <th class="py-2.5 px-3">Tarikh Lahir</th>
@@ -1540,6 +1561,7 @@
         tbody.innerHTML += `
           <tr class="hover:bg-slate-50">
             <td class="py-2 px-3 text-slate-500">${i + 1}</td>
+            <td class="py-2 px-3 text-center">${athleteAvatar(a)}</td>
             <td class="py-2 px-3 font-extrabold text-blue-700">${a.NoPeserta}</td>
             <td class="py-2 px-3 font-bold">${athleteNameBadge(a)}</td>
             <td class="py-2 px-3 text-slate-600">${a.TarikhLahir || '-'}</td>
@@ -1547,7 +1569,7 @@
             <td class="py-2 px-3 text-center"><span class="px-2 py-0.5 rounded bg-slate-100 font-bold">${a.Kategori}</span></td>
             <td class="py-2 px-3 text-[11px] text-slate-600">${a.SenaraiAcaraDisertai || '-'}</td>
             <td class="py-2 px-3 text-center">
-              ${canUploadAthleteDocs(a) || (a.GambarURL || a.DokumenURL) ? `<button onclick="openDocModal('${a.NoPeserta}')" class="text-emerald-600 px-2 py-1" title="Gambar & Dokumen"><i class="fa-solid fa-file-arrow-up"></i></button>` : ''}
+              ${canUploadAthleteDocs(a) || a.DokumenURL ? `<button onclick="openDocModal('${a.NoPeserta}')" class="smis-doc-btn ${a.DokumenURL ? 'has' : ''}" title="Dokumen PDF"><i class="fa-solid ${a.DokumenURL ? 'fa-file-circle-check' : 'fa-file-arrow-up'}"></i></button>` : ''}
               ${canManageAthlete(a) ? `<button onclick="editAthlete('${a.NoPeserta}')" class="text-blue-600 px-2 py-1" title="Edit Atlet"><i class="fa-solid fa-pen-to-square"></i></button>` : ''}
               <button onclick="deleteAthlete('${a.NoPeserta}')" class="text-rose-600 hover:text-rose-800 px-2 py-1" title="Padam Atlet"><i class="fa-solid fa-trash"></i></button>
             </td>
@@ -3173,11 +3195,18 @@
       box.classList.remove('hidden');
     }
     // ===== GAMBAR & DOKUMEN PESERTA =====
-    function athleteDocsComplete(a) { return !!(a && a.GambarURL && a.DokumenURL); }
+    function athleteEventCount(a) {
+      if (!a) return 0;
+      const bib = String(a.NoPeserta).toUpperCase();
+      const n = (DB.Pendaftaran || []).filter(r => String(r.NoPeserta).toUpperCase() === bib).length;
+      return Math.max(n, Number(a.JumlahAcaraDisertai) || 0, String(a.SenaraiAcaraDisertai || '').trim() && a.SenaraiAcaraDisertai !== '-' ? 1 : 0);
+    }
+    // Hijau = sekurang-kurangnya 1 acara + gambar + dokumen
+    function athleteDocsComplete(a) { return !!(a && a.GambarURL && a.DokumenURL && athleteEventCount(a) >= 1); }
     function athleteNameBadge(a) {
       const ok = athleteDocsComplete(a);
       const cls = ok ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      const tip = ok ? 'Gambar & dokumen lengkap' : 'Belum lengkap: ' + [!a.GambarURL ? 'Gambar' : '', !a.DokumenURL ? 'Dokumen PDF' : ''].filter(Boolean).join(' & ');
+      const tip = ok ? 'Gambar & dokumen lengkap' : 'Belum lengkap: ' + [athleteEventCount(a) < 1 ? 'Acara' : '', !a.GambarURL ? 'Gambar' : '', !a.DokumenURL ? 'Dokumen PDF' : ''].filter(Boolean).join(' & ');
       return '<span title="' + tip + '" class="inline-block px-2 py-0.5 rounded border ' + cls + '">' + escapeText(a.NamaPeserta) + '</span>';
     }
     function docUploadStatus() {
@@ -3202,16 +3231,16 @@
       }
       const can = canUploadAthleteDocs(a), st = docUploadStatus();
       m.innerHTML = '<div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5 space-y-4 text-sm">'
-        + '<div class="flex justify-between items-start"><div><div class="font-extrabold text-lg">Gambar & Dokumen Peserta</div><div class="mt-1">' + athleteNameBadge(a) + ' <span class="text-slate-500">(' + escapeText(a.NoPeserta) + ' • ' + escapeText(a.NamaPasukan || a.KodPasukan) + ')</span></div></div>'
+        + '<div class="flex justify-between items-start"><div><div class="font-extrabold text-lg">Dokumen Peserta (PDF)</div><div class="mt-1">' + athleteNameBadge(a) + ' <span class="text-slate-500">(' + escapeText(a.NoPeserta) + ' • ' + escapeText(a.NamaPasukan || a.KodPasukan) + ')</span></div></div>'
         + '<button onclick="closeDocModal()" class="text-slate-500 text-xl px-2">&times;</button></div>'
         + '<div class="px-3 py-2 rounded-lg ' + (st.open ? 'bg-blue-50 text-blue-800' : 'bg-rose-50 text-rose-700') + '"><i class="fa-solid fa-clock mr-1"></i>' + escapeText(st.text) + '</div>'
-        + '<div class="border rounded-xl p-3 space-y-2"><div class="font-bold">1. Gambar Peserta (JPG/PNG, maks 5MB) ' + (a.GambarURL ? '<span class="text-emerald-600">✔ Ada</span>' : '<span class="text-yellow-600">✖ Belum</span>') + '</div>'
-        + (a.GambarURL ? '<img src="' + escapeText(a.GambarURL) + '" class="h-28 rounded border object-cover" referrerpolicy="no-referrer" />' : '')
-        + (can ? '<input type="file" id="docGambarInput" accept="image/jpeg,image/png,image/webp" class="block w-full text-xs" /><button onclick="uploadAthleteDoc(\'gambar\')" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-bold">Muat Naik Gambar</button>' : '') + '</div>'
-        + '<div class="border rounded-xl p-3 space-y-2"><div class="font-bold">2. Dokumen PDF Gabungan (maks 20MB) ' + (a.DokumenURL ? '<span class="text-emerald-600">✔ Ada</span>' : '<span class="text-yellow-600">✖ Belum</span>') + '</div>'
+        + '<div class="border rounded-xl p-3 space-y-2"><div class="font-bold">Dokumen PDF Gabungan (maks 20MB) ' + (a.DokumenURL ? '<span class="text-emerald-600">✔ Ada</span>' : '<span class="text-yellow-600">✖ Belum</span>') + '</div>'
         + '<div class="text-xs text-slate-500">Gabungkan dalam SATU PDF: Kad Pengenalan / Sijil Lahir, Kad OKU, R01/M01, Akuan Kesihatan dan lain-lain dokumen berkaitan.</div>'
-        + (a.DokumenURL ? '<a href="' + escapeText(a.DokumenURL) + '" target="_blank" class="text-blue-700 underline font-semibold"><i class="fa-solid fa-file-pdf mr-1"></i>Lihat Dokumen</a>' : '')
-        + (can ? '<input type="file" id="docPdfInput" accept="application/pdf" class="block w-full text-xs" /><button onclick="uploadAthleteDoc(\'dokumen\')" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-bold">Muat Naik Dokumen</button>' : '') + '</div>'
+        + (a.DokumenURL ? '<a href="' + escapeText(a.DokumenURL) + '" target="_blank" class="smis-big-btn smis-big-outline"><i class="fa-solid fa-file-pdf"></i>Lihat Dokumen</a>' : '')
+        + (can ? '<input type="file" id="docPdfInput" accept="application/pdf" class="hidden" onchange="smisFilePicked(this,\'docPdfName\')" />'
+          + '<label for="docPdfInput" class="smis-big-btn smis-big-outline"><i class="fa-solid fa-folder-open"></i>1. Pilih Fail PDF</label>'
+          + '<div id="docPdfName" class="text-xs text-slate-500 text-center">Tiada fail dipilih</div>'
+          + '<button onclick="uploadAthleteDoc(\'dokumen\')" class="smis-big-btn smis-big-primary"><i class="fa-solid fa-cloud-arrow-up"></i>2. Muat Naik Dokumen</button>' : '') + '</div>'
         + '<div id="docUploadMsg" class="text-xs font-semibold"></div></div>';
       m.classList.remove('hidden'); m.classList.add('flex');
     }
@@ -3219,12 +3248,12 @@
     async function uploadAthleteDoc(kind) {
       const input = document.getElementById(kind === 'gambar' ? 'docGambarInput' : 'docPdfInput');
       const f = input && input.files && input.files[0];
-      const msg = document.getElementById('docUploadMsg');
+      const msg = document.getElementById(kind === 'gambar' ? 'profUploadMsg' : 'docUploadMsg');
       if (!f) return showToast('Sila pilih fail dahulu.', true);
       if (kind === 'dokumen' && f.type !== 'application/pdf') return showToast('Dokumen mesti fail PDF.', true);
       if (kind === 'gambar' && !/^image\/(jpeg|png|webp)$/.test(f.type)) return showToast('Gambar mesti JPG, PNG atau WEBP.', true);
-      if (f.size > (kind === 'gambar' ? 5 : 20) * 1024 * 1024) return showToast('Saiz fail terlalu besar.', true);
-      const bib = docModalBib;
+      if (f.size > (kind === 'gambar' ? 15 : 20) * 1024 * 1024) return showToast('Saiz fail terlalu besar.', true);
+      const bib = kind === 'gambar' ? profileBib : docModalBib;
       msg.className = 'text-xs font-semibold text-blue-700'; msg.textContent = 'Sedang memuat naik... sila tunggu.';
       try {
         const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(f); });
@@ -3234,11 +3263,106 @@
         if (window.smisPull) await window.smisPull(true);
         renderAthleteTable();
         if (docModalBib === bib) openDocModal(bib);
+        if (profileBib === bib) openProfileModal(bib);
       } catch (e) {
         msg.className = 'text-xs font-semibold text-rose-600'; msg.textContent = e.message || String(e);
         showToast(e.message || 'Muat naik gagal.', true);
       }
     }
+
+
+    // ===== PROFIL PESERTA (GAMBAR) =====
+    function athleteInitials(a) { return String(a.NamaPeserta || '?').split(/\s+/).filter(w => w && !/^(BIN|BINTI|A\/L|A\/P)$/i.test(w)).slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
+    function athleteAvatar(a) {
+      const inner = a.GambarURL
+        ? '<img src="' + escapeText(a.GambarURL) + '" alt="" referrerpolicy="no-referrer" draggable="false" oncontextmenu="return false" />'
+        : '<span>' + escapeText(athleteInitials(a)) + '</span>';
+      return '<button type="button" onclick="openProfileModal(\'' + escapeText(a.NoPeserta) + '\')" class="smis-avatar ' + (a.GambarURL ? '' : 'empty') + '" title="Lihat profil">' + inner + '</button>';
+    }
+    // Muat turun 4K: hanya Admin / Sub Admin / Pengurus pasukan peserta itu
+    function canDownloadAthletePhoto(a) {
+      if (!a || !a.GambarURL || !currentUser) return false;
+      if (smisIsAdmin()) return true;
+      return String(currentUser.Peranan).toLowerCase() === 'pengurus' && a.KodPasukan === currentUser.KodPasukan;
+    }
+    let profileBib = null;
+    function openProfileModal(bib) {
+      const a = (DB.Atlet || []).find(x => x.NoPeserta === bib); if (!a) return;
+      profileBib = bib;
+      let m = document.getElementById('profileModal');
+      if (!m) { m = document.createElement('div'); m.id = 'profileModal'; m.className = 'fixed inset-0 bg-slate-900/70 z-50 hidden items-center justify-center p-3 no-print smis-protect'; m.onclick = e => { if (e.target === m) closeProfileModal(); }; document.body.appendChild(m); }
+      const can = canUploadAthleteDocs(a), st = docUploadStatus();
+      const regs = (DB.Pendaftaran || []).filter(r => String(r.NoPeserta).toUpperCase() === String(a.NoPeserta).toUpperCase());
+      const events = regs.length ? regs.map(r => '<li>#' + escapeText(r.NoAcara) + ' ' + escapeText(r.NamaAcara) + '</li>').join('') : '<li>' + escapeText(a.SenaraiAcaraDisertai || 'Tiada acara') + '</li>';
+      const viewer = currentUser ? (currentUser.Username + ' • ' + currentUser.Peranan) : 'Paparan Awam';
+      const wm = escapeText(viewer + ' • ' + new Date().toLocaleString('ms-MY') + ' • SULIT');
+      m.innerHTML = '<div class="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[95vh] overflow-y-auto text-sm">'
+        + '<div class="flex justify-between items-center px-4 pt-3"><div class="font-extrabold text-lg">Profil Peserta</div><button onclick="closeProfileModal()" class="text-slate-500 text-3xl w-12 h-12">&times;</button></div>'
+        + '<div class="px-4"><div class="smis-photo-wrap">'
+        + (a.GambarURL ? '<img src="' + escapeText(String(a.GambarURL).replace(/sz=w\d+/, 'sz=w1000')) + '" alt="" referrerpolicy="no-referrer" draggable="false" oncontextmenu="return false" />'
+                       : '<div class="smis-photo-empty"><i class="fa-solid fa-user"></i><div>Belum ada gambar</div></div>')
+        + '<div class="smis-watermark" data-wm="' + wm + '"></div></div></div>'
+        + '<div class="px-4 py-3 space-y-1">'
+        + '<div class="text-center mb-2">' + athleteNameBadge(a) + '</div>'
+        + '<div class="grid grid-cols-2 gap-2 text-xs">'
+        + '<div class="bg-slate-50 rounded-lg p-2"><div class="text-slate-500">No. Peserta</div><div class="font-bold">' + escapeText(a.NoPeserta) + '</div></div>'
+        + '<div class="bg-slate-50 rounded-lg p-2"><div class="text-slate-500">Kategori</div><div class="font-bold">' + escapeText(a.Kategori) + '</div></div>'
+        + '<div class="bg-slate-50 rounded-lg p-2"><div class="text-slate-500">Tarikh Lahir</div><div class="font-bold">' + escapeText(a.TarikhLahir || '-') + '</div></div>'
+        + '<div class="bg-slate-50 rounded-lg p-2"><div class="text-slate-500">Pasukan</div><div class="font-bold">' + escapeText(a.NamaPasukan || a.KodPasukan) + '</div></div></div>'
+        + '<div class="bg-slate-50 rounded-lg p-2 text-xs"><div class="text-slate-500">Acara Disertai</div><ul class="font-semibold">' + events + '</ul></div>'
+        + '<div class="flex gap-3 text-xs pt-1"><span>' + (a.GambarURL ? '✔' : '✖') + ' Gambar</span><span>' + (a.DokumenURL ? '✔' : '✖') + ' Dokumen</span><span>' + (athleteEventCount(a) ? '✔' : '✖') + ' Acara</span></div>'
+        + '</div>'
+        + '<div class="px-4 pb-4 space-y-2">'
+        + (can ? '<div class="px-3 py-2 rounded-lg text-xs ' + (st.open ? 'bg-blue-50 text-blue-800' : 'bg-rose-50 text-rose-700') + '">' + escapeText(st.text) + '</div>'
+          + '<input type="file" id="docGambarInput" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="smisFilePicked(this,\'profPicName\')" />'
+          + '<label for="docGambarInput" class="smis-big-btn smis-big-outline"><i class="fa-solid fa-camera"></i>1. Pilih / Ambil Gambar</label>'
+          + '<div id="profPicName" class="text-xs text-slate-500 text-center">Tiada gambar dipilih (JPG/PNG, maks 15MB)</div>'
+          + '<button onclick="uploadAthleteDoc(\'gambar\')" class="smis-big-btn smis-big-primary"><i class="fa-solid fa-cloud-arrow-up"></i>2. Muat Naik Gambar</button>' : '')
+        + (canDownloadAthletePhoto(a) ? '<button onclick="downloadAthletePhoto4K(\'' + escapeText(a.NoPeserta) + '\')" class="smis-big-btn smis-big-dark"><i class="fa-solid fa-download"></i>Muat Turun Gambar 4K</button>' : '')
+        + '<div id="profUploadMsg" class="text-xs font-semibold text-center"></div>'
+        + '<div class="text-[10px] text-slate-400 text-center"><i class="fa-solid fa-lock"></i> Paparan sulit. Tangkap layar tidak dibenarkan demi privasi peserta.</div>'
+        + '</div></div>';
+      m.classList.remove('hidden'); m.classList.add('flex');
+      document.body.classList.add('smis-profile-open');
+    }
+    function closeProfileModal() { const m = document.getElementById('profileModal'); if (m) { m.classList.add('hidden'); m.classList.remove('flex'); m.innerHTML = ''; } profileBib = null; document.body.classList.remove('smis-profile-open'); }
+    function smisFilePicked(input, labelId) { const el = document.getElementById(labelId); if (el) el.textContent = input.files && input.files[0] ? '📎 ' + input.files[0].name : 'Tiada fail dipilih'; }
+    async function downloadAthletePhoto4K(bib) {
+      const a = (DB.Atlet || []).find(x => x.NoPeserta === bib);
+      if (!canDownloadAthletePhoto(a)) return showToast('Hanya Admin dan Pengurus pasukan peserta ini boleh memuat turun.', true);
+      const msg = document.getElementById('profUploadMsg');
+      if (msg) { msg.className = 'text-xs font-semibold text-center text-blue-700'; msg.textContent = 'Menyediakan gambar 4K...'; }
+      try {
+        const out = await window.smisApi({ action: 'downloadAthletePhoto', noPeserta: bib });
+        if (out.status !== 'success') throw new Error(out.message || 'Muat turun gagal.');
+        const img = new Image(); img.src = 'data:' + out.mimeType + ';base64,' + out.base64; await img.decode();
+        const LONG = 3840, k = LONG / Math.max(img.naturalWidth, img.naturalHeight);
+        const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+        const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(img, 0, 0, c.width, c.height);
+        const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.95));
+        const url = URL.createObjectURL(blob); const link = document.createElement('a');
+        link.href = url; link.download = bib + '_GAMBAR_4K.jpg'; document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        if (msg) { msg.className = 'text-xs font-semibold text-center text-emerald-700'; msg.textContent = 'Gambar 4K (' + c.width + 'x' + c.height + ') dimuat turun.'; }
+      } catch (e) { if (msg) { msg.className = 'text-xs font-semibold text-center text-rose-600'; msg.textContent = e.message || String(e); } showToast(e.message || 'Muat turun gagal.', true); }
+    }
+    // Halangan tangkap layar (pelayar tidak boleh menyekat 100%, tetapi ini menyukarkan)
+    (function () {
+      const shield = () => document.body.classList.add('smis-shield');
+      const unshield = () => document.body.classList.remove('smis-shield');
+      window.addEventListener('blur', shield); window.addEventListener('focus', unshield);
+      document.addEventListener('visibilitychange', () => document.hidden ? shield() : unshield());
+      document.addEventListener('keydown', e => {
+        const k = (e.key || '').toLowerCase();
+        const snap = k === 'printscreen' || (e.metaKey && e.shiftKey && ['3','4','5','s'].includes(k)) || (e.ctrlKey && k === 'p') || (e.metaKey && k === 'p');
+        if (snap && document.body.classList.contains('smis-profile-open')) {
+          e.preventDefault(); shield(); try { navigator.clipboard && navigator.clipboard.writeText(''); } catch (_) {}
+          showToast('Tangkap layar profil peserta tidak dibenarkan.', true); setTimeout(unshield, 1500);
+        }
+      });
+      document.addEventListener('keyup', e => { if ((e.key || '').toLowerCase() === 'printscreen') { try { navigator.clipboard && navigator.clipboard.writeText(''); } catch (_) {} } });
+      document.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('.smis-protect, .smis-avatar')) e.preventDefault(); });
+    })();
 
     function canManageAthlete(a) {
       if (smisIsAdmin()) return true;
