@@ -12,7 +12,9 @@
  *    kunci unik, dengan LockService supaya ramai pengguna boleh kemaskini serentak
  *    tanpa menindih data pengguna lain.
  *  - Kebenaran disemak di pelayan:
- *      Admin    : kuasa penuh (tambah, edit, padam semua jadual)
+ *      Admin    : MASTER ADMIN - kuasa penuh termasuk melantik / membuang Sub Admin
+ *      SubAdmin : SUB ADMIN (dilantik Master Admin) - tambah, edit, padam SEMUA data
+ *                 (tidak boleh mengubah akaun Master Admin / Sub Admin lain)
  *      Hakim    : kemasukan keputusan (Keputusan & jadual statistik)
  *      Pengurus : hanya data pasukan sendiri (Atlet, Pendaftaran, Keputusan/senarai mula
  *                 pasukan sendiri & baris Pasukan sendiri)
@@ -60,7 +62,7 @@ function doGet(e) {
       return jsonResponse({ status: 'success', message: 'SMIS API Connected', spreadsheetId: SPREADSHEET_ID, folderId: DRIVE_FOLDER_ID });
     }
     // Paparan awam: kata laluan tidak didedahkan
-    return jsonResponse({ status: 'success', data: getAllDataFromSheets(false), serverTime: new Date().getTime() });
+    return jsonResponse({ status: 'success', data: getAllDataFromSheets(''), serverTime: new Date().getTime() });
   } catch (err) {
     return jsonResponse({ status: 'error', message: err.toString() });
   }
@@ -85,8 +87,8 @@ function doPost(e) {
     }
 
     if (action === 'getAllData') {
-      const isAdmin = !!(user && isRole(user, 'Admin'));
-      return jsonResponse({ status: 'success', data: getAllDataFromSheets(isAdmin), user: user ? publicUser(user) : null, serverTime: new Date().getTime() });
+      const level = !user ? '' : (isRole(user, 'Admin') ? 'master' : (isRole(user, 'SubAdmin') ? 'sub' : ''));
+      return jsonResponse({ status: 'success', data: getAllDataFromSheets(level), user: user ? publicUser(user) : null, serverTime: new Date().getTime() });
     }
 
     if (action === 'applyChanges') {
@@ -97,7 +99,7 @@ function doPost(e) {
 
     // Tindakan lama: tulis ganti penuh - kini HANYA untuk Admin
     if (action === 'syncAll' || action === 'seedDefaultData') {
-      if (!user || !isRole(user, 'Admin')) return jsonResponse({ status: 'error', message: 'Hanya Admin dibenarkan menulis semula keseluruhan Google Sheet.' });
+      if (!user || !isRole(user, 'Admin')) return jsonResponse({ status: 'error', message: 'Hanya Master Admin dibenarkan menulis semula keseluruhan Google Sheet.' });
       const db = payload.data || {};
       withLock(function () {
         Object.keys(SHEET_SCHEMAS).forEach(sheetName => {
@@ -110,8 +112,8 @@ function doPost(e) {
     }
 
     if (action === 'saveSheet') {
-      if (!user || !isRole(user, 'Admin')) return jsonResponse({ status: 'error', message: 'Hanya Admin dibenarkan.' });
       const sheetName = payload.sheetName;
+      if (!user || !(isRole(user, 'Admin') || (isManager(user) && sheetName !== 'Pengguna'))) return jsonResponse({ status: 'error', message: 'Hanya Master Admin / Sub Admin dibenarkan.' });
       const rows = payload.rows || [];
       withLock(function () {
         writeSheetData(ss, sheetName, getHeaders(ss, sheetName, rows), rows);
@@ -120,7 +122,7 @@ function doPost(e) {
     }
 
     if (action === 'saveBackupToDrive') {
-      if (!user || !isRole(user, 'Admin')) return jsonResponse({ status: 'error', message: 'Hanya Admin dibenarkan menyimpan ke Google Drive.' });
+      if (!user || !isManager(user)) return jsonResponse({ status: 'error', message: 'Hanya Master Admin / Sub Admin dibenarkan menyimpan ke Google Drive.' });
       const folder = DriveApp.getFolderById(DRIVE_FOLDER_ID);
       const fileName = payload.fileName || ('SMIS_Backup_' + Utilities.formatDate(new Date(), 'GMT+8', 'yyyyMMdd_HHmmss') + '.html');
       const content = payload.content || JSON.stringify(payload.data || {}, null, 2);
@@ -156,6 +158,17 @@ function isRole(user, role) {
   return String(user.Peranan || '').trim().toLowerCase() === role.toLowerCase();
 }
 
+// Master Admin atau Sub Admin
+function isManager(user) {
+  return !!user && (isRole(user, 'Admin') || isRole(user, 'SubAdmin'));
+}
+
+function isAdminRow(r) {
+  if (!r) return false;
+  const p = String(r.Peranan || '').trim().toLowerCase();
+  return p === 'admin' || p === 'subadmin';
+}
+
 function publicUser(u) {
   return { Username: u.Username, Peranan: u.Peranan, KodPasukan: u.KodPasukan, NamaPasukan: u.NamaPasukan, CatatanAkses: u.CatatanAkses };
 }
@@ -163,6 +176,11 @@ function publicUser(u) {
 // Semak sama ada pengguna boleh menulis baris ini (oldRow = sedia ada, newRow = baharu / null jika padam)
 function canWriteRow(user, sheetName, oldRow, newRow) {
   if (isRole(user, 'Admin')) return true;
+  if (isRole(user, 'SubAdmin')) {
+    // Sub Admin boleh urus semua data, kecuali akaun Master Admin / Sub Admin
+    if (sheetName === 'Pengguna') return !isAdminRow(oldRow) && !isAdminRow(newRow);
+    return true;
+  }
   if (isRole(user, 'Hakim')) return sheetName === 'Keputusan';
   if (isRole(user, 'Pengurus')) {
     const team = String(user.KodPasukan || '').trim();
@@ -180,8 +198,8 @@ function canWriteRow(user, sheetName, oldRow, newRow) {
 }
 
 function canReplaceSheet(user, sheetName) {
-  if (DERIVED_SHEETS.indexOf(sheetName) === -1) return isRole(user, 'Admin');
-  return isRole(user, 'Admin') || isRole(user, 'Hakim');
+  if (DERIVED_SHEETS.indexOf(sheetName) === -1) return isRole(user, 'Admin') || (isRole(user, 'SubAdmin') && sheetName !== 'Pengguna');
+  return isManager(user) || isRole(user, 'Hakim');
 }
 
 // ============================================================================
@@ -300,13 +318,16 @@ function readSheetObjects(ss, sheetName) {
   return { headers: headers, rows: rows };
 }
 
-function getAllDataFromSheets(includePasswords) {
+// level: 'master' = semua kata laluan, 'sub' = kecuali kata laluan Master/Sub Admin, '' = tiada
+function getAllDataFromSheets(level) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const result = {};
   Object.keys(SHEET_SCHEMAS).forEach(sheetName => {
     result[sheetName] = readSheetObjects(ss, sheetName).rows;
   });
-  if (!includePasswords) {
+  if (level === 'sub') {
+    result['Pengguna'] = result['Pengguna'].map(u => isAdminRow(u) ? Object.assign({}, u, { Password: '' }) : u);
+  } else if (level !== 'master') {
     result['Pengguna'] = result['Pengguna'].map(u => Object.assign({}, u, { Password: '' }));
   }
   return result;

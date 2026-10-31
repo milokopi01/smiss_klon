@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#1e40af" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script>window.SMIS_API_URL = "https://script.google.com/macros/s/AKfycbwO5dzbx5AM-WSnNx0BhBA04UT9-EUbeSG5nAvNJmOMyy_0uxChw7YHx_YujEZA1Ekz/exec"; // ★ LINK GOOGLE APPS SCRIPT ANDA — TUKAR DI SINI SAHAJA (baris 10) ★</script>
+  <script>window.SMIS_API_URL = "https://script.google.com/macros/s/AKfycbwT0OR7KbSdGHhtZPHasV6sA7vQSNEjkrPeNk0BdGWBWsbQSOkPnyyAbL7_WJp7507z/exec"; // ★ LINK GOOGLE APPS SCRIPT ANDA — TUKAR DI SINI SAHAJA (baris 10) ★</script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet" />
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -631,8 +631,11 @@
 
             <!-- Senarai Akaun Pengguna / Sekolah -->
             <div class="pt-3 border-t border-slate-200">
-              <div class="font-bold text-slate-700 mb-2">Senarai Log Masuk Urusetia, Hakim & Pengurus Sekolah:</div>
-              <div class="overflow-x-auto max-h-44 border border-slate-200 rounded-lg">
+              <div class="flex items-center justify-between mb-2 gap-2">
+                <div class="font-bold text-slate-700">Senarai Log Masuk Master Admin, Sub Admin, Hakim & Pengurus Sekolah:</div>
+                <button onclick="openUserEditor()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold flex items-center gap-1"><i class="fa-solid fa-user-plus"></i> Tambah Pengguna / Lantik Sub Admin</button>
+              </div>
+              <div class="overflow-x-auto max-h-72 border border-slate-200 rounded-lg">
                 <table class="w-full text-left border-collapse text-[11px]">
                   <thead class="bg-slate-100 font-bold">
                     <tr>
@@ -640,6 +643,7 @@
                       <th class="p-2">Password</th>
                       <th class="p-2">Peranan</th>
                       <th class="p-2">Pasukan / Kontinjen</th>
+                      <th class="p-2 text-center">Tindakan</th>
                     </tr>
                   </thead>
                   <tbody id="userAccountsTableBody" class="divide-y divide-slate-100"></tbody>
@@ -1350,6 +1354,7 @@
           <th class="p-2 text-center bg-blue-50 text-blue-800">Jum. Atlet</th>
           ${KATEGORI_LIST.map(c => `<th class="p-1.5 text-center">${c}</th>`).join('')}
           <th class="p-2 text-center">Pegawai (L/P/Jum)</th>
+          <th class="p-2 text-center smis-mgr-col">Tindakan</th>
         </tr>`;
 
       pBody.innerHTML = '';
@@ -1362,6 +1367,10 @@
             <td class="p-2 text-center font-extrabold text-blue-700 bg-blue-50/40">${t.JumlahAtlet || 0}</td>
             ${KATEGORI_LIST.map(c => `<td class="p-1.5 text-center">${Number(t[c]) || '-'}</td>`).join('')}
             <td class="p-2 text-center font-semibold">${t.Pegawai_L || 0} / ${t.Pegawai_P || 0} (${t.JumlahPegawai || 0})</td>
+            <td class="p-2 text-center whitespace-nowrap smis-mgr-col" onclick="event.stopPropagation()">
+              <button onclick="editTeam('${t.KodPasukan}')" class="text-blue-600 hover:text-blue-800 px-1.5" title="Edit Kontinjen"><i class="fa-solid fa-pen-to-square"></i></button>
+              <button onclick="deleteTeam('${t.KodPasukan}')" class="text-rose-600 hover:text-rose-800 px-1.5" title="Padam Kontinjen"><i class="fa-solid fa-trash"></i></button>
+            </td>
           </tr>`;
       });
 
@@ -2283,6 +2292,13 @@
       });
     }
 
+    function roleLabel(r) {
+      const p = String(r || '').toLowerCase();
+      if (p === 'admin') return 'Master Admin';
+      if (p === 'subadmin') return 'Sub Admin';
+      return r || '-';
+    }
+
     function renderUserAccountsTable() {
       const tbody = document.getElementById('userAccountsTableBody');
       if (!tbody) return;
@@ -2291,9 +2307,13 @@
         tbody.innerHTML += `
           <tr>
             <td class="p-2 font-mono font-bold text-blue-700">${u.Username}</td>
-            <td class="p-2 font-mono">${u.Password}</td>
-            <td class="p-2 font-semibold">${u.Peranan}</td>
+            <td class="p-2 font-mono">${u.Password || '••••'}</td>
+            <td class="p-2 font-semibold">${roleLabel(u.Peranan)}</td>
             <td class="p-2">${u.NamaPasukan} (${u.KodPasukan})</td>
+            <td class="p-2 text-center whitespace-nowrap">
+              <button onclick="openUserEditor('${u.Username}')" class="text-blue-600 hover:text-blue-800 px-1.5" title="Edit Pengguna"><i class="fa-solid fa-pen-to-square"></i></button>
+              <button onclick="deleteUserAccount('${u.Username}')" class="text-rose-600 hover:text-rose-800 px-1.5" title="Padam Pengguna"><i class="fa-solid fa-trash"></i></button>
+            </td>
           </tr>`;
       });
     }
@@ -2854,7 +2874,7 @@
     // - Semua data dibaca dari Google Sheet (tiada data kejohanan dalam index.html).
     // - Setiap perubahan dikesan automatik & dihantar ke Google Sheet (baris demi baris).
     // - Data ditarik semula setiap LIVE_POLL_MS supaya semua pengguna nampak data terkini.
-    // - Admin  : kuasa penuh | Hakim : kemasukan keputusan | Pengurus : pasukan sendiri | Awam : lihat sahaja
+    // - Master Admin (Admin) & Sub Admin (SubAdmin) : kuasa penuh data | Hakim : kemasukan keputusan | Pengurus : pasukan sendiri | Awam : lihat sahaja
     (function () {
       const LIVE_POLL_MS = 15000;
       const PUSH_DEBOUNCE_MS = 1200;
@@ -2872,7 +2892,11 @@
 
       // ---------- Peranan ----------
       const role = () => String((currentUser && currentUser.Peranan) || '').toLowerCase();
-      const isAdmin = () => role() === 'admin';
+      const isMaster = () => role() === 'admin';
+      // isAdmin = Master Admin ATAU Sub Admin (kuasa penuh ke atas data)
+      const isAdmin = () => role() === 'admin' || role() === 'subadmin';
+      const isAdminRow = r => !!r && ['admin', 'subadmin'].includes(String(r.Peranan || '').toLowerCase());
+      window.smisIsMaster = isMaster;
       const isHakim = () => role() === 'hakim';
       const isPengurus = () => role() === 'pengurus' && currentUser.KodPasukan && currentUser.KodPasukan !== 'ALL';
       window.smisIsAdmin = isAdmin;
@@ -2913,7 +2937,8 @@
       }
 
       function allowedRow(sheet, oldRow, newRow) {
-        if (isAdmin()) return true;
+        if (isMaster()) return true;
+        if (isAdmin()) return sheet !== 'Pengguna' || (!isAdminRow(oldRow) && !isAdminRow(newRow));
         if (isHakim()) return sheet === 'Keputusan';
         if (isPengurus()) {
           const t = currentUser.KodPasukan;
@@ -3068,6 +3093,12 @@
         document.querySelectorAll('[onclick^="syncToGoogleSheet"]').forEach(b => show(b, isAdmin()));
         ['openNewSchoolModal', 'openEventModal', 'autoGenerateAllHeats', 'splitEventIntoHeats', 'clearResultsForNewMeet', 'resetToOriginalExcelData', 'exportAllDataToExcel', 'openImportExcel', 'saveFlexibleConfig', 'saveBukuToGoogleDrive']
           .forEach(fn => document.querySelectorAll('[onclick^="' + fn + '"]').forEach(b => show(b, isAdmin())));
+        document.querySelectorAll('.smis-mgr-col').forEach(el => show(el, isAdmin()));
+        document.querySelectorAll('[onclick^="openUserEditor"],[onclick^="deleteUserAccount"]').forEach(b => {
+          const m = (b.getAttribute('onclick') || '').match(/\('([^']*)'\)/);
+          const u = m ? (DB.Pengguna || []).find(x => x.Username === m[1]) : null;
+          show(b, isMaster() || (isAdmin() && !isAdminRow(u)));
+        });
         document.querySelectorAll('[onclick^="openAthleteModal"]').forEach(b => show(b, isAdmin() || isPengurus()));
         document.querySelectorAll('[onclick^="deleteAthlete"]').forEach(b => {
           const m = (b.getAttribute('onclick') || '').match(/deleteAthlete\('([^']*)'\)/);
@@ -3135,6 +3166,8 @@
         if (n === 'renderAllViews') applyRoleUI();
         return r;
       }));
+      wrap('renderUserAccountsTable', orig => function () { const r = orig.apply(this, arguments); applyRoleUI(); return r; });
+      wrap('renderSchoolPortal', orig => function () { const r = orig.apply(this, arguments); applyRoleUI(); return r; });
       wrap('renderAthleteTable', orig => function () { const r = orig.apply(this, arguments); applyRoleUI(); return r; });
       wrap('renderScheduleTable', orig => function () { const r = orig.apply(this, arguments); applyRoleUI(); return r; });
 
@@ -3269,7 +3302,7 @@
         }
         try {
           const json = await api({ action: 'login' });
-          if (!json || json.status !== 'success' || !json.user || String(json.user.Peranan).toLowerCase() !== 'admin') {
+          if (!json || json.status !== 'success' || !json.user || !['admin', 'subadmin'].includes(String(json.user.Peranan).toLowerCase())) {
             showToast('Pengesahan Master Admin dengan Google Sheet gagal. Tindakan dibatalkan.', true); return false;
           }
         } catch (e) { showToast('Tidak dapat mengesahkan dengan Google Sheet. Tindakan dibatalkan.', true); return false; }
@@ -3281,12 +3314,12 @@
       });
 
       window.openImportExcel = function () {
-        if (!isAdmin()) return deny();
+        if (!isMaster()) return deny('Hanya Master Admin boleh restore keseluruhan data daripada Excel.');
         const el = document.getElementById('importExcelInput');
         if (el) { el.value = ''; el.click(); }
       };
       window.importExcelFile = async function (input) {
-        if (!isAdmin()) return deny();
+        if (!isMaster()) return deny('Hanya Master Admin boleh restore keseluruhan data daripada Excel.');
         const file = input && input.files && input.files[0];
         if (!file) return;
         if (typeof XLSX === 'undefined') return showToast('Pustaka Excel belum dimuatkan. Semak sambungan internet.', true);
@@ -3318,6 +3351,137 @@
           setBadge('Ralat Restore', 'err');
           showToast('Gagal memulihkan data: ' + e.message, true);
         } finally { input.value = ''; }
+      };
+
+      // ---------- Borang ringkas (modal) ----------
+      function formModal(title, fields) {
+        return new Promise(resolve => {
+          const w = document.createElement('div');
+          w.className = 'fixed inset-0 z-[9999] bg-slate-900/60 flex items-center justify-center p-4';
+          w.innerHTML = `
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-3 text-xs max-h-[90vh] overflow-y-auto">
+              <h3 class="font-extrabold text-sm text-slate-800">${title}</h3>
+              ${fields.map(f => `
+                <div>
+                  <label class="font-bold text-slate-700 block mb-1">${f.label}</label>
+                  ${f.options
+                    ? `<select data-k="${f.key}" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-slate-50" ${f.readonly ? 'disabled' : ''}>${f.options.map(o => `<option value="${o.value}" ${String(o.value) === String(f.value ?? '') ? 'selected' : ''}>${o.label}</option>`).join('')}</select>`
+                    : `<input data-k="${f.key}" type="${f.type || 'text'}" value="${String(f.value ?? '').replace(/"/g, '&quot;')}" placeholder="${f.placeholder || ''}" class="w-full px-3 py-2 rounded-lg border border-slate-300 ${f.readonly ? 'bg-slate-100' : ''}" ${f.readonly ? 'readonly' : ''} />`}
+                </div>`).join('')}
+              <div class="flex justify-end gap-2 pt-2">
+                <button data-a="no" class="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold">Batal</button>
+                <button data-a="ok" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold">Simpan</button>
+              </div>
+            </div>`;
+          w.id = 'smisFormModal';
+          w.classList.add('flex');
+          document.body.appendChild(w);
+          const done = v => { w.remove(); resolve(v); };
+          w.querySelector('[data-a="no"]').onclick = () => done(null);
+          w.querySelector('[data-a="ok"]').onclick = () => {
+            const out = {};
+            w.querySelectorAll('[data-k]').forEach(el => { out[el.getAttribute('data-k')] = el.value.trim(); });
+            done(out);
+          };
+        });
+      }
+
+      // ---------- Kontinjen / Pasukan: Edit & Padam ----------
+      window.editTeam = async function (kod) {
+        if (!isAdmin()) return deny('Hanya Master Admin / Sub Admin boleh mengemaskini kontinjen.');
+        const t = (DB.Pasukan || []).find(x => x.KodPasukan === kod);
+        if (!t) return showToast('Kontinjen tidak dijumpai.', true);
+        const v = await formModal(`<i class="fa-solid fa-pen-to-square text-blue-600"></i> Edit Kontinjen: ${kod}`, [
+          { key: 'KodPasukan', label: 'Kod Pasukan (tidak boleh diubah)', value: t.KodPasukan, readonly: true },
+          { key: 'NamaPasukan', label: 'Nama Pasukan / Sekolah', value: t.NamaPasukan },
+          { key: 'PrefiksNoPeserta', label: 'Prefiks No. Peserta', value: t.PrefiksNoPeserta },
+          { key: 'Pegawai_L', label: 'Bil. Pegawai Lelaki', value: t.Pegawai_L || 0, type: 'number' },
+          { key: 'Pegawai_P', label: 'Bil. Pegawai Perempuan', value: t.Pegawai_P || 0, type: 'number' }
+        ]);
+        if (!v) return;
+        if (!v.NamaPasukan) return showToast('Nama pasukan tidak boleh kosong.', true);
+        const nama = v.NamaPasukan.toUpperCase();
+        const oldNama = t.NamaPasukan;
+        t.NamaPasukan = nama;
+        t.PrefiksNoPeserta = v.PrefiksNoPeserta;
+        t.Pegawai_L = Number(v.Pegawai_L) || 0;
+        t.Pegawai_P = Number(v.Pegawai_P) || 0;
+        t.JumlahPegawai = t.Pegawai_L + t.Pegawai_P;
+        // Kemaskini nama pasukan dalam semua jadual berkaitan
+        if (nama !== oldNama) {
+          ['Atlet', 'Pendaftaran', 'Keputusan', 'Pengguna'].forEach(s => (DB[s] || []).forEach(r => { if (r.KodPasukan === kod) r.NamaPasukan = nama; }));
+        }
+        initDropdownFilters();
+        recalculateAllStandings(false);
+        renderAllViews();
+        showToast(`Kontinjen ${kod} berjaya dikemaskini.`);
+      };
+
+      window.deleteTeam = function (kod) {
+        if (!isAdmin()) return deny('Hanya Master Admin / Sub Admin boleh memadam kontinjen.');
+        const t = (DB.Pasukan || []).find(x => x.KodPasukan === kod);
+        if (!t) return;
+        const nAtlet = (DB.Atlet || []).filter(a => a.KodPasukan === kod).length;
+        const nUser = (DB.Pengguna || []).filter(u => u.KodPasukan === kod && !isAdminRow(u)).length;
+        if (!confirm(`Padam kontinjen ${kod}: ${t.NamaPasukan}?\n\nIni juga akan memadam:\n- ${nAtlet} atlet serta pendaftaran & keputusan mereka\n- ${nUser} akaun pengurus pasukan ini\n\nTindakan ini tidak boleh dibatalkan.`)) return;
+        if (nAtlet && prompt(`Taip kod "${kod}" untuk mengesahkan pemadaman:`) !== kod) return showToast('Pemadaman dibatalkan.', true);
+        DB.Pasukan = DB.Pasukan.filter(x => x.KodPasukan !== kod);
+        ['Atlet', 'Pendaftaran', 'Keputusan'].forEach(s => { DB[s] = (DB[s] || []).filter(r => r.KodPasukan !== kod); });
+        DB.Pengguna = (DB.Pengguna || []).filter(u => u.KodPasukan !== kod || isAdminRow(u));
+        let bil = 1;
+        DB.Pasukan.forEach(x => { if (x.KodPasukan && x.KodPasukan !== 'ALL') x.Bil = bil++; });
+        const sel = document.getElementById('schoolFilterSelect');
+        if (sel && sel.value === kod) sel.value = 'ALL';
+        initDropdownFilters();
+        recalculateAllStandings(false);
+        renderAllViews();
+        showToast(`Kontinjen ${kod} telah dipadam.`);
+      };
+
+      // ---------- Pengguna: Tambah / Edit / Padam / Lantik Sub Admin ----------
+      window.openUserEditor = async function (username) {
+        if (!isAdmin()) return deny();
+        const u = username ? (DB.Pengguna || []).find(x => x.Username === username) : null;
+        if (u && isAdminRow(u) && !isMaster()) return deny('Hanya Master Admin boleh mengubah akaun Master Admin / Sub Admin.');
+        const roles = [{ value: 'Pengurus', label: 'Pengurus Pasukan' }, { value: 'Hakim', label: 'Hakim' }];
+        if (isMaster()) roles.unshift({ value: 'Admin', label: 'Master Admin' }, { value: 'SubAdmin', label: 'Sub Admin (kuasa penuh data)' });
+        const teams = [{ value: 'ALL', label: 'ALL (Semua / Urusetia)' }].concat(getValidTeams().map(t => ({ value: t.KodPasukan, label: `${t.KodPasukan}: ${t.NamaPasukan}` })));
+        const v = await formModal(u ? `Edit Pengguna: ${u.Username}` : 'Tambah Pengguna / Lantik Sub Admin', [
+          { key: 'Username', label: 'Username', value: u ? u.Username : '', readonly: !!u },
+          { key: 'Password', label: u ? 'Password baharu (biar kosong jika tidak ubah)' : 'Password', value: '', type: 'text' },
+          { key: 'Peranan', label: 'Peranan', value: u ? u.Peranan : 'Pengurus', options: roles },
+          { key: 'KodPasukan', label: 'Pasukan / Kontinjen', value: u ? u.KodPasukan : 'ALL', options: teams },
+          { key: 'CatatanAkses', label: 'Catatan Akses', value: u ? u.CatatanAkses : '' }
+        ]);
+        if (!v) return;
+        if (!v.Username) return showToast('Username diperlukan.', true);
+        if (!u && !v.Password) return showToast('Password diperlukan untuk akaun baharu.', true);
+        if (!u && (DB.Pengguna || []).some(x => String(x.Username).toLowerCase() === v.Username.toLowerCase())) return showToast('Username sudah wujud.', true);
+        if (v.Peranan === 'Pengurus' && v.KodPasukan === 'ALL') return showToast('Pengurus mesti dipilih kepada satu pasukan.', true);
+        if (u && u.Username === currentUser.Username && v.Peranan !== u.Peranan) return showToast('Anda tidak boleh menukar peranan akaun sendiri.', true);
+        const team = getValidTeams().find(t => t.KodPasukan === v.KodPasukan);
+        const row = u || { Username: v.Username };
+        if (v.Password) row.Password = v.Password;
+        row.Peranan = v.Peranan;
+        row.KodPasukan = v.KodPasukan;
+        row.NamaPasukan = team ? team.NamaPasukan : (v.Peranan === 'Admin' ? 'MASTER ADMIN' : v.Peranan === 'SubAdmin' ? 'SUB ADMIN' : 'URUSETIA');
+        row.CatatanAkses = v.CatatanAkses;
+        if (!u) DB.Pengguna.push(row);
+        renderAllViews();
+        showToast(`Akaun ${row.Username} (${roleLabel(row.Peranan)}) disimpan.`);
+      };
+
+      window.deleteUserAccount = function (username) {
+        if (!isAdmin()) return deny();
+        const u = (DB.Pengguna || []).find(x => x.Username === username);
+        if (!u) return;
+        if (isAdminRow(u) && !isMaster()) return deny('Hanya Master Admin boleh membuang Master Admin / Sub Admin.');
+        if (u.Username === currentUser.Username) return showToast('Anda tidak boleh memadam akaun sendiri.', true);
+        if (String(u.Peranan).toLowerCase() === 'admin' && DB.Pengguna.filter(x => String(x.Peranan).toLowerCase() === 'admin').length <= 1) return showToast('Mesti ada sekurang-kurangnya satu Master Admin.', true);
+        if (!confirm(`Padam akaun ${u.Username} (${roleLabel(u.Peranan)})?`)) return;
+        DB.Pengguna = DB.Pengguna.filter(x => x.Username !== username);
+        renderAllViews();
+        showToast(`Akaun ${username} dipadam.`);
       };
 
       // ---------- Mula ----------
