@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smis-olahraga-v2026.11-profil';
+const CACHE_NAME = 'smis-olahraga-v2026.11-pasukan';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
